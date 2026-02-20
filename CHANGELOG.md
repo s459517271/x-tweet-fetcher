@@ -4,6 +4,13 @@
 
 ---
 
+## [1.2.1] - 2026-02-21
+
+### 修复
+- **时间线排序（Issue #25）**：时间线模式下按 Snowflake ID 降序排列（最新在前），`tweet_id` 字段从 Nitter `/status/{id}` 链接提取，Pinned tweet 标记 `is_pinned: true`
+
+---
+
 ## [1.2.0] - 2026-02-20
 
 ### 新增
