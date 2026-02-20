@@ -611,6 +611,7 @@ def parse_replies_snapshot(snapshot: str, original_author: str) -> List[Dict]:
             author_handle = None
             author_name = None
             reply_text = None
+            reply_tweet_id = None  # 新增：回复的 tweet ID（用于递归抓嵌套）
             time_ago = None
             likes = 0
             replies_count = 0
@@ -623,6 +624,12 @@ def parse_replies_snapshot(snapshot: str, original_author: str) -> List[Dict]:
             # Scan backwards for author info (within ~15 lines)
             for j in range(i - 1, max(0, i - 15), -1):
                 prev = lines[j].strip()
+
+                # Extract reply tweet ID from permalink: /url: /author/status/12345#m
+                if not reply_tweet_id:
+                    tid_m = re.match(r'^- /url:\s+/\w+/status/(\d+)#m$', prev)
+                    if tid_m:
+                        reply_tweet_id = tid_m.group(1)
 
                 # @handle (not the original author)
                 if not author_handle:
@@ -779,6 +786,8 @@ def parse_replies_snapshot(snapshot: str, original_author: str) -> List[Dict]:
                     "replies": replies_count,
                     "views": views,
                 }
+                if reply_tweet_id:
+                    reply["tweet_id"] = reply_tweet_id
                 if media_urls:
                     reply["media"] = media_urls
                 if links:
@@ -942,6 +951,34 @@ def fetch_tweet_replies(
         return result
 
     replies = parse_replies_snapshot(snapshot, original_author=username)
+
+    # ── 递归抓取嵌套回复（Issue #24 修复） ──
+    # 对有 replies > 0 且有 tweet_id 的评论，访问其独立 status 页面
+    # 获取嵌套回复内容（Nitter 评论区页面不展开嵌套回复）
+    for reply in replies:
+        if reply.get("replies", 0) > 0 and reply.get("tweet_id"):
+            reply_author = reply["author"].lstrip("@")
+            reply_tid = reply["tweet_id"]
+            nested_url = f"https://{nitter_instance}/{reply_author}/status/{reply_tid}"
+            print(
+                f"[x-tweet-fetcher] 抓取嵌套回复: {reply_author}/status/{reply_tid}",
+                file=sys.stderr,
+            )
+
+            nested_snapshot = camofox_fetch_page(
+                nested_url,
+                session_key=f"nested-{reply_tid}",
+                wait=8,
+                port=camofox_port,
+            )
+
+            if nested_snapshot:
+                nested_replies = parse_replies_snapshot(
+                    nested_snapshot, original_author=reply_author
+                )
+                if nested_replies:
+                    reply["thread_replies"] = nested_replies
+
     result["replies"] = replies
     result["reply_count"] = len(replies)
 
