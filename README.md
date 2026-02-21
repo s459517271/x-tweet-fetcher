@@ -10,7 +10,7 @@ An [OpenClaw](https://github.com/openclaw/openclaw) skill. Zero dependencies, ze
 |---------|---------|-------------|
 | Regular tweets | ✅ Full text + stats | None |
 | Long tweets | ✅ Full text | None |
-| X Articles (long-form) | ✅ Complete article | None |
+| X Articles (long-form) | ⚠️ Title only (FxTwitter limitation) | **Camofox recommended** |
 | Quoted tweets | ✅ Included | None |
 | Stats (likes/RT/views) | ✅ Included | None |
 | **Reply comments** | ⚠️ With comments | **Camofox required** |
