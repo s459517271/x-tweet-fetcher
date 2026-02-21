@@ -22,7 +22,6 @@ An [OpenClaw](https://github.com/openclaw/openclaw) skill. Zero dependencies, ze
 |------|------|------|
 | `scripts/fetch_tweet.py` | 抓推文/评论区/用户时间线 | 基础无依赖，评论区需 Camofox |
 | `scripts/camofox_client.py` | Google 搜索（无需 API key） | Camofox |
-| `scripts/x-profile-analyzer.py` | X 用户画像分析（MBTI/大五/话题图谱） | Camofox + LLM API |
 | `scripts/fetch_china.py` | 国内平台抓取（微博/B站/CSDN/微信公众号） | 微信无依赖，其他需 Camofox |
 
 ## Quick Start
@@ -101,21 +100,6 @@ results = camofox_search("OpenClaw AI agent")
 ```
 
 Uses Camofox to search Google directly — zero API keys, no rate limits from search providers.
-
-## User Profile Analysis
-
-```bash
-# 分析用户画像（抓推文 + AI 分析）
-python3 scripts/x-profile-analyzer.py --user elonmusk --count 100
-
-# 只抓数据不分析
-python3 scripts/x-profile-analyzer.py --user elonmusk --no-analyze
-
-# 保存报告
-python3 scripts/x-profile-analyzer.py --user elonmusk --output report.md
-```
-
-Generates MBTI, Big Five personality traits, topic graph, and communication style analysis from a user's tweets.
 
 ## China Platform Support
 
