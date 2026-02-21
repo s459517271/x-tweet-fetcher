@@ -23,6 +23,7 @@ An [OpenClaw](https://github.com/openclaw/openclaw) skill. Zero dependencies, ze
 | `scripts/fetch_tweet.py` | 抓推文/评论区/用户时间线 | 基础无依赖，评论区需 Camofox |
 | `scripts/camofox_client.py` | Google 搜索（无需 API key） | Camofox |
 | `scripts/fetch_china.py` | 国内平台抓取（微博/B站/CSDN/微信公众号） | 微信无依赖，其他需 Camofox |
+| `scripts/version_check.py` | 启动时检查 GitHub 新版本（内部模块） | 无依赖，后台线程，失败静默 |
 
 ## Quick Start
 
