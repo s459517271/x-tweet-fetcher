@@ -188,7 +188,8 @@ x-tweet-fetcher/
 │   ├── fetch_tweet.py          # 主抓取器（推文 + 评论 + 时间线）
 │   ├── fetch_china.py          # 国内平台抓取器
 │   ├── camofox_client.py       # Camofox API 客户端 + camofox_search()
-│   └── x-profile-analyzer.py   # AI 用户画像分析
+│   ├── x-profile-analyzer.py   # AI 用户画像分析
+│   └── version_check.py        # 后台版本检查（启动时静默检查新版本）
 └── VERSION
 ```
 
@@ -342,7 +343,8 @@ x-tweet-fetcher/
 │   ├── fetch_tweet.py          # Main fetcher (tweets + replies + timeline)
 │   ├── fetch_china.py          # Chinese platform fetcher
 │   ├── camofox_client.py       # Camofox API client + camofox_search()
-│   └── x-profile-analyzer.py   # AI profile analyzer
+│   ├── x-profile-analyzer.py   # AI profile analyzer
+│   └── version_check.py        # Background version checker (silent on startup)
 └── VERSION
 ```
 
