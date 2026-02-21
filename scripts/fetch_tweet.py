@@ -256,7 +256,10 @@ def extract_media(tweet_obj: Dict[str, Any]) -> Optional[Dict[str, Any]]:
 
 def fetch_tweet(url: str, timeout: int = 30) -> Dict[str, Any]:
     """Fetch single tweet via FxTwitter API (zero deps)."""
-    username, tweet_id = parse_tweet_url(url)
+    try:
+        username, tweet_id = parse_tweet_url(url)
+    except ValueError as e:
+        return {"url": url, "error": str(e)}
     result = {"url": url, "username": username, "tweet_id": tweet_id}
 
     api_url = f"https://api.fxtwitter.com/{username}/status/{tweet_id}"
@@ -479,10 +482,6 @@ def parse_timeline_snapshot(snapshot: str, limit: int = 20) -> List[Dict]:
 
         end_i = content_anchors[idx + 1][0] if idx + 1 < len(content_anchors) else n
 
-        # Extract tweet_id from the tweet_path: /user/status/12345#m
-        tweet_id_match = re.match(r'^/\w+/status/(\d+)#m$', tweet_path)
-        tweet_id = tweet_id_match.group(1) if tweet_id_match else None
-
         author_name = None
         author_handle = None
         time_ago = None
@@ -493,7 +492,6 @@ def parse_timeline_snapshot(snapshot: str, limit: int = 20) -> List[Dict]:
         replies_count = 0
         views = 0
         media_urls = []
-        is_pinned = False
 
         for j in range(start_i, min(end_i, start_i + 60)):
             line = lines[j].strip()
@@ -537,13 +535,6 @@ def parse_timeline_snapshot(snapshot: str, limit: int = 20) -> List[Dict]:
                 raw = line[len("- text:"):].strip()
                 if not raw:
                     continue
-                # Check for pinned tweet marker
-                # Nitter may prepend a Unicode icon (e.g. \ue80e) before "Pinned Tweet"
-                # so we strip non-ASCII/non-word prefix chars before comparing.
-                raw_stripped = re.sub(r'^[\W\s]+', '', raw).strip()
-                if raw_stripped.lower() == "pinned tweet":
-                    is_pinned = True
-                    continue
                 text_part, rc, rt, lk, vw = _parse_stats_from_text(raw)
                 if lk or rc:
                     # Stats found — capture only once
@@ -554,16 +545,8 @@ def parse_timeline_snapshot(snapshot: str, limit: int = 20) -> List[Dict]:
                         views = vw
                         stats_set = True
                 if text_part:
-                    # Strip "Pinned Tweet" prefix if present (with flexible whitespace and
-                    # optional leading Unicode icon character, e.g. \ue80e)
-                    pinned_prefix_match = re.match(r'^[\W\s]*Pinned\s+Tweet\s+(.*)', text_part, re.IGNORECASE)
-                    if pinned_prefix_match:
-                        is_pinned = True
-                        text_part = pinned_prefix_match.group(1).strip()
-                        if not text_part:  # If only "Pinned Tweet" was in this line, skip it
-                            continue
                     # Skip label-like lines
-                    skip_labels = {"retweeted", ""}
+                    skip_labels = {"pinned tweet", "retweeted", ""}
                     if text_part.strip().lower() not in skip_labels:
                         text_parts.append(text_part.strip())
 
@@ -591,10 +574,6 @@ def parse_timeline_snapshot(snapshot: str, limit: int = 20) -> List[Dict]:
                 "replies": replies_count,
                 "views": views,
             }
-            if tweet_id:
-                tweet_entry["tweet_id"] = tweet_id
-            if is_pinned:
-                tweet_entry["is_pinned"] = is_pinned
             if media_urls:
                 tweet_entry["media"] = media_urls
 
@@ -932,18 +911,6 @@ def fetch_user_timeline(
         page += 1
         if len(tweets) < limit:
             time.sleep(2)  # be polite between pages
-
-    # ── Sort by Snowflake ID (newest first) ────────────────────────────────
-    # Twitter Snowflake IDs are time-based: higher ID = newer tweet.
-    # Pinned tweets are marked but sorted with the rest (not moved to end).
-    tweets_with_id = [tw for tw in tweets if tw.get("tweet_id")]
-    tweets_without_id = [tw for tw in tweets if not tw.get("tweet_id")]
-
-    # Sort tweets with ID by tweet_id descending (newest first)
-    tweets_with_id.sort(key=lambda tw: int(tw["tweet_id"]), reverse=True)
-
-    # Combine: sorted tweets first, then any without ID (edge case)
-    tweets = tweets_with_id + tweets_without_id
 
     result["tweets"] = tweets
     result["count"] = len(tweets)
