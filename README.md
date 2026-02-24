@@ -17,6 +17,7 @@ An [OpenClaw](https://github.com/openclaw/openclaw) skill. Zero dependencies, ze
 | **User timeline** | ⚠️ With timeline | **Camofox required** |
 | **Mentions monitoring** | ⚠️ With monitor | **Camofox required** |
 | **WeChat article search** | ✅ Via Sogou | None |
+| **Tweet discovery** | ✅ Keyword search | duckduckgo-search or Camofox |
 
 ## All Scripts
 
@@ -27,6 +28,7 @@ An [OpenClaw](https://github.com/openclaw/openclaw) skill. Zero dependencies, ze
 | `scripts/x-profile-analyzer.py` | X 用户画像分析（MBTI/大五/话题图谱） | Camofox + LLM API |
 | `scripts/fetch_china.py` | 国内平台抓取（微博/B站/CSDN/微信公众号） | 微信无依赖，其他需 Camofox |
 | `scripts/sogou_wechat.py` | 🆕 搜狗微信公众号搜索（关键词 → 文章列表） | 无依赖 |
+| `scripts/x_discover.py` | 🆕 刷推模式（关键词 → 发现推文） | duckduckgo-search 或 Camofox |
 | `scripts/version_check.py` | 启动时检查 GitHub 新版本（内部模块） | 无依赖，后台线程，失败静默 |
 
 ## Quick Start
@@ -220,6 +222,26 @@ python3 scripts/sogou_wechat.py --keyword "人工智能" --limit 10 --json
 from sogou_wechat import sogou_wechat_search
 results = sogou_wechat_search("AI Agent", max_results=5)
 # Returns: [{"title": "...", "url": "...", "author": "...", "snippet": "...", "date": "..."}]
+```
+
+### 🆕 Tweet Discovery (Keyword Search)
+
+Discover tweets by keyword — uses DuckDuckGo (fallback: Camofox Google).
+
+```bash
+# Search and display
+python3 scripts/x_discover.py --keywords "AI Agent,automation" --limit 5
+
+# JSON output
+python3 scripts/x_discover.py --keywords "openclaw" --json
+
+# With cache (skip seen URLs on next run)
+python3 scripts/x_discover.py --keywords "LLM tool" --cache cache.json
+
+# Use as Python module
+from x_discover import discover_tweets
+result = discover_tweets(["AI Agent"], max_results=5)
+# Returns: {"timestamp": "...", "total_new": 3, "finds": [...]}
 ```
 
 ## Limitations
