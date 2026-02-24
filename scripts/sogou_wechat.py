@@ -28,7 +28,84 @@ import html as html_lib
 import subprocess
 
 
-def sogou_wechat_search_via_ssh(keyword, max_results=10, ssh_host=None):
+def sogou_wechat_search_via_router(keyword, max_results=10):
+    """Search Sogou WeChat via home router (cmd-queue/cmd-result pattern).
+    
+    Router polls VPS every minute, executes queued commands, pushes results back.
+    Uses home IP — never gets banned by Sogou.
+    """
+    import time
+    queue_file = os.environ.get("ROUTER_CMD_QUEUE", "/root/router-agent/cmd-queue")
+    result_file = os.environ.get("ROUTER_CMD_RESULT", "/root/router-agent/cmd-result")
+    output_file = os.environ.get("ROUTER_CMD_OUTPUT", "/root/router-agent/cmd-output")
+    
+    # Mark current result file position
+    try:
+        with open(result_file) as f:
+            before = f.read()
+        before_len = len(before)
+    except FileNotFoundError:
+        before_len = 0
+    
+    # Queue the curl command — router will fetch raw HTML
+    encoded_kw = quote(keyword)
+    cmd = f'curl -s "https://weixin.sogou.com/weixin?type=2&query={encoded_kw}" -H "User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"'
+    
+    with open(queue_file, 'w') as f:
+        f.write(cmd)
+    
+    print(f"Command queued, waiting for router (up to 90s)...", file=sys.stderr)
+    
+    # Wait for result (router polls every ~60s)
+    for _ in range(18):  # 18 * 5s = 90s max
+        time.sleep(5)
+        try:
+            with open(result_file) as f:
+                after = f.read()
+            if len(after) > before_len:
+                # New result arrived — read the output file
+                try:
+                    with open(output_file) as f:
+                        html_text = f.read()
+                    if 'txt-box' in html_text:
+                        return _parse_sogou_html(html_text, max_results)
+                except FileNotFoundError:
+                    pass
+        except FileNotFoundError:
+            pass
+    
+    print("Router timeout, falling back to direct", file=sys.stderr)
+    return sogou_wechat_search(keyword, max_results)
+
+
+def _parse_sogou_html(text, max_results=10):
+    """Parse Sogou search result HTML into structured results."""
+    results = []
+    blocks = re.findall(r'<div class="txt-box">(.*?)</div>\s*</div>', text, re.DOTALL)
+    for block in blocks[:max_results]:
+        title_match = re.search(r'<a[^>]*href="([^"]*)"[^>]*>(.*?)</a>', block, re.DOTALL)
+        if not title_match:
+            continue
+        article_url = title_match.group(1).replace('&amp;', '&')
+        raw_title = title_match.group(2)
+        title = re.sub(r'<[^>]+>', '', raw_title).strip()
+        title = html_lib.unescape(title)
+        author_match = re.search(r'<a[^>]*class="account"[^>]*>(.*?)</a>', block, re.DOTALL)
+        author = re.sub(r'<[^>]+>', '', author_match.group(1)).strip() if author_match else ''
+        snippet_match = re.search(r'<p class="txt-info">(.*?)</p>', block, re.DOTALL)
+        snippet = re.sub(r'<[^>]+>', '', snippet_match.group(1)).strip() if snippet_match else ''
+        snippet = html_lib.unescape(snippet)
+        date_match = re.search(r"document\.write\(timeConvert\('(\d+)'\)\)", block)
+        if date_match:
+            from datetime import datetime
+            ts = int(date_match.group(1))
+            date = datetime.fromtimestamp(ts).strftime('%Y-%m-%d')
+        else:
+            date = ''
+        if article_url.startswith('/link'):
+            article_url = 'https://weixin.sogou.com' + article_url
+        results.append({'title': title, 'url': article_url, 'author': author, 'snippet': snippet, 'date': date})
+    return results
     """Search Sogou WeChat via SSH proxy to avoid IP bans.
     
     Requires: SOGOU_SSH_HOST env var or ssh_host param (e.g. user@host).
@@ -220,9 +297,12 @@ def main():
     parser.add_argument("--json", "-j", action="store_true", help="Output JSON")
     parser.add_argument("--resolve", "-r", action="store_true", help="Resolve Sogou links to real WeChat URLs (requires Camofox)")
     parser.add_argument("--via-ssh", action="store_true", help="Route search via SSH proxy (set SOGOU_SSH_HOST env var)")
+    parser.add_argument("--via-router", action="store_true", help="Route search via home router (cmd-queue pattern, 24/7)")
     args = parser.parse_args()
 
-    if args.via_ssh:
+    if args.via_router:
+        results = sogou_wechat_search_via_router(args.keyword, args.limit)
+    elif args.via_ssh:
         results = sogou_wechat_search_via_ssh(args.keyword, args.limit)
     else:
         results = sogou_wechat_search(args.keyword, args.limit)
