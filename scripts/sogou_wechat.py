@@ -85,14 +85,48 @@ def sogou_wechat_search(keyword, max_results=10):
         return []
 
 
+def resolve_sogou_link(sogou_url, port=9377):
+    """Resolve Sogou redirect link to real mp.weixin.qq.com URL via Camofox."""
+    try:
+        from camofox_client import camofox_open_tab, camofox_snapshot, camofox_close_tab
+        import time
+        tab_id = camofox_open_tab(sogou_url, f"resolve-{int(time.time())}", port=port)
+        if not tab_id:
+            return sogou_url
+        time.sleep(5)
+        snapshot = camofox_snapshot(tab_id, port=port)
+        camofox_close_tab(tab_id, port=port)
+        if snapshot:
+            # Look for mp.weixin.qq.com in the final page URL or content
+            import re
+            mp_match = re.search(r'(https?://mp\.weixin\.qq\.com/s/[A-Za-z0-9_-]+)', snapshot)
+            if mp_match:
+                return mp_match.group(1)
+            # Check for canonical URL
+            canon = re.search(r'canonical.*?(https?://mp\.weixin\.qq\.com[^\s"<>]+)', snapshot)
+            if canon:
+                return canon.group(1)
+        return sogou_url
+    except Exception:
+        return sogou_url
+
+
 def main():
     parser = argparse.ArgumentParser(description="Search WeChat articles via Sogou")
     parser.add_argument("--keyword", "-k", required=True, help="Search keyword")
     parser.add_argument("--limit", "-l", type=int, default=10, help="Max results")
     parser.add_argument("--json", "-j", action="store_true", help="Output JSON")
+    parser.add_argument("--resolve", "-r", action="store_true", help="Resolve Sogou links to real WeChat URLs (requires Camofox)")
     args = parser.parse_args()
 
     results = sogou_wechat_search(args.keyword, args.limit)
+
+    if args.resolve and results:
+        print("Resolving Sogou links to real WeChat URLs...", file=sys.stderr)
+        for r in results:
+            resolved = resolve_sogou_link(r['url'])
+            if resolved != r['url']:
+                r['url'] = resolved
 
     if args.json:
         print(json.dumps(results, ensure_ascii=False, indent=2))
