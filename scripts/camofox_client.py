@@ -86,17 +86,75 @@ import re
 import urllib.parse
 
 
-def camofox_search(query: str, num: int = 10, lang: str = "zh-CN", port: int = 9377) -> list:
+def camofox_search(query: str, num: int = 10, lang: str = "zh-CN", engine: str = "google", port: int = 9377) -> list:
     """
-    Search Google via Camofox. Returns list of dicts:
-    [{"title": ..., "url": ..., "snippet": ...}, ...]
+    Search via Camofox. Supports Google and DuckDuckGo.
+    
+    Args:
+        query: search keywords
+        num: max results
+        lang: language code
+        engine: "google" or "duckduckgo"
+        port: Camofox port
+    
+    Returns list of dicts: [{"title": ..., "url": ..., "snippet": ...}, ...]
     """
     encoded = urllib.parse.quote(query)
-    search_url = f"https://www.google.com/search?q={encoded}&hl={lang}&num={num}"
-    snapshot = camofox_fetch_page(search_url, f"search-{int(time.time())}", wait=4, port=port)
-    if not snapshot:
-        return []
-    return _parse_google_results(snapshot)
+    
+    if engine == "duckduckgo":
+        search_url = f"https://duckduckgo.com/?q={encoded}&kl={lang}&t=h_"
+        snapshot = camofox_fetch_page(search_url, f"ddg-{int(time.time())}", wait=5, port=port)
+        if not snapshot:
+            return []
+        return _parse_duckduckgo_results(snapshot, num)
+    else:
+        search_url = f"https://www.google.com/search?q={encoded}&hl={lang}&num={num}"
+        snapshot = camofox_fetch_page(search_url, f"search-{int(time.time())}", wait=4, port=port)
+        if not snapshot:
+            return []
+        return _parse_google_results(snapshot)
+
+
+def _parse_duckduckgo_results(snapshot: str, max_results: int = 10) -> list:
+    """Parse DuckDuckGo search results from Camofox snapshot text."""
+    results = []
+    lines = snapshot.split("\n")
+    i = 0
+    while i < len(lines) and len(results) < max_results:
+        line = lines[i].strip()
+        # DuckDuckGo result pattern: heading with link
+        if '- heading "' in line and '[level=' in line:
+            m = re.search(r'heading "(.+?)"', line)
+            title = m.group(1) if m else ""
+            
+            # Look for URL nearby
+            url = ""
+            for j in range(max(0, i - 3), min(len(lines), i + 3)):
+                if "/url:" in lines[j]:
+                    candidate = lines[j].strip().split("/url:", 1)[1].strip()
+                    if candidate and "duckduckgo.com" not in candidate:
+                        url = candidate
+                        break
+            
+            # Look forward for snippet
+            snippet_parts = []
+            k = i + 1
+            while k < len(lines) and k < i + 8:
+                sline = lines[k].strip()
+                if sline.startswith("- heading ") or sline.startswith("- link "):
+                    break
+                for prefix in ["- text:", "text:", "- emphasis:", "emphasis:"]:
+                    if sline.startswith(prefix):
+                        snippet_parts.append(sline.split(prefix, 1)[1].strip())
+                        break
+                k += 1
+            
+            snippet = " ".join(snippet_parts).strip()
+            
+            if url and title:
+                results.append({"title": title, "url": url, "snippet": snippet})
+        i += 1
+    return results
 
 
 def _parse_google_results(snapshot: str) -> list:
@@ -159,11 +217,17 @@ def _parse_google_results(snapshot: str) -> list:
 
 
 if __name__ == "__main__":
-    # Quick test
     import sys
-    query = " ".join(sys.argv[1:]) if len(sys.argv) > 1 else "好莱坞 故事 5个模型"
-    print(f"Searching: {query}")
-    results = camofox_search(query)
+    # Usage: python3 camofox_client.py [--engine google|duckduckgo] query...
+    engine = "google"
+    args = sys.argv[1:]
+    if "--engine" in args:
+        idx = args.index("--engine")
+        engine = args[idx + 1]
+        args = args[:idx] + args[idx + 2:]
+    query = " ".join(args) if args else "AI Agent"
+    print(f"Searching ({engine}): {query}")
+    results = camofox_search(query, engine=engine)
     for i, r in enumerate(results, 1):
         print(f"\n{i}. {r['title']}")
         print(f"   {r['url']}")
