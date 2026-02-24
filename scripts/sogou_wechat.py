@@ -6,6 +6,11 @@ Part of x-tweet-fetcher.
 Usage:
   python3 sogou_wechat.py --keyword "AI" --limit 5
   python3 sogou_wechat.py --keyword "人工智能" --json
+
+  # Resolve to real mp.weixin.qq.com URLs (via Google/DuckDuckGo)
+  python3 sogou_wechat.py --keyword "AI Agent" --limit 3 --resolve --json
+
+Workflow: Sogou search → get titles → Google/DDG find real WeChat URL → fetch_china.py reads full text
 """
 
 import requests
@@ -111,6 +116,35 @@ def resolve_sogou_link(sogou_url, port=9377):
         return sogou_url
 
 
+def resolve_via_google(title, port=9377):
+    """Resolve article title to real mp.weixin.qq.com URL via Google search."""
+    try:
+        from camofox_client import camofox_search
+        query = f'site:mp.weixin.qq.com "{title}"'
+        results = camofox_search(query, num=3, port=port)
+        for r in results:
+            url = r.get('url', '')
+            if 'mp.weixin.qq.com' in url:
+                return url
+    except Exception:
+        pass
+    # Fallback: try DuckDuckGo
+    try:
+        from duckduckgo_search import DDGS
+        import warnings
+        warnings.filterwarnings("ignore")
+        ddgs = DDGS()
+        query = f'site:mp.weixin.qq.com {title}'
+        results = ddgs.text(query, max_results=3)
+        for r in results:
+            url = r.get('href', '')
+            if 'mp.weixin.qq.com' in url:
+                return url
+    except Exception:
+        pass
+    return None
+
+
 def main():
     parser = argparse.ArgumentParser(description="Search WeChat articles via Sogou")
     parser.add_argument("--keyword", "-k", required=True, help="Search keyword")
@@ -122,11 +156,18 @@ def main():
     results = sogou_wechat_search(args.keyword, args.limit)
 
     if args.resolve and results:
-        print("Resolving Sogou links to real WeChat URLs...", file=sys.stderr)
+        print("Resolving to real WeChat URLs (Sogou → Google/DuckDuckGo → mp.weixin.qq.com)...", file=sys.stderr)
         for r in results:
-            resolved = resolve_sogou_link(r['url'])
-            if resolved != r['url']:
-                r['url'] = resolved
+            real_url = resolve_via_google(r['title'])
+            if real_url:
+                r['url'] = real_url
+                r['resolved'] = True
+            else:
+                # Fallback: try Camofox direct resolve
+                resolved = resolve_sogou_link(r['url'])
+                if resolved != r['url']:
+                    r['url'] = resolved
+                    r['resolved'] = True
 
     if args.json:
         print(json.dumps(results, ensure_ascii=False, indent=2))
