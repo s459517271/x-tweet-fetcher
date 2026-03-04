@@ -629,7 +629,7 @@ def parse_timeline_snapshot(snapshot: str, limit: int = 20) -> List[Dict]:
             primary_indices.append(idx)
 
     # ── Helper to parse a block of lines into tweet fields ────────────────
-    def _parse_block(start, end):
+    def _parse_block(start, end, status_id=""):
         author_name = None
         author_handle = None
         time_ago = None
@@ -707,6 +707,7 @@ def parse_timeline_snapshot(snapshot: str, limit: int = 20) -> List[Dict]:
             "time_ago": time_ago or "",
             "likes": likes, "retweets": rt_count,
             "replies": replies_count, "views": views,
+            "tweet_id": status_id,
         }
         if media_urls:
             entry["media"] = media_urls
@@ -745,7 +746,7 @@ def parse_timeline_snapshot(snapshot: str, limit: int = 20) -> List[Dict]:
                 break
 
         # Parse main tweet (up to quote boundary)
-        entry = _parse_block(start_i, quote_start)
+        entry = _parse_block(start_i, quote_start, content_anchors[pi][3])
         if not entry:
             continue
 
@@ -1944,7 +1945,7 @@ def supplement_views(tweets: List[Dict], max补充: int = 10) -> List[Dict]:
         if not tweet_id:
             continue
         try:
-            resp = requests.get(f"https://api.fxtwitter.com/status/{username}/{tweet_id}", timeout=5)
+            resp = requests.get(f"https://api.fxtwitter.com/status/{tweet_id}", timeout=5)
             data = resp.json()
             views = data.get("tweet", {}).get("views", 0)
             if views:
