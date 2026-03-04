@@ -4,6 +4,34 @@
 
 ---
 
+## [1.6.0] - 2026-03-04
+
+### 新增
+- **X Lists 抓取**：`--list <id_or_url>` 抓取 X Lists 推文
+  - 支持纯数字 ID 和完整 URL（x.com/i/lists/xxx 或 twitter.com/i/lists/xxx）
+  - 通过 Camofox + Nitter，零 API Key
+  - 支持翻页（MAX_PAGES=10）和去重
+  - 支持 `--text-only` 纯文本和 JSON 输出
+
+---
+
+## [1.5.0] - 2026-02-25
+
+### 新增
+- **Nitter Mentions 监控**：基于 Nitter 的实时 X 提及监控
+- **version_check.py**：自动版本检查工具
+
+---
+
+## [1.4.0] - 2026-02-24
+
+### 新增
+- **小红书支持**：`fetch_china.py` 新增小红书平台，支持 `--proxy` 和 `--cookies`
+- **搜狗微信搜索**：`sogou_wechat.py` 新增 `--resolve`（Google/DDG 解析真实 URL）和 `--via-ssh`（SSH 代理）
+- **路由器代理**：`--via-router` 24/7 家庭 IP 代理搜索
+
+---
+
 ## [1.3.0] - 2026-02-23
 
 ### 新增

@@ -16,6 +16,7 @@ An [OpenClaw](https://github.com/openclaw/openclaw) skill. Zero dependencies for
 | Fetch reply comments | `fetch_tweet.py --replies` | Camofox | JSON: threaded comment tree |
 | Fetch user timeline | `fetch_tweet.py --user` | Camofox | JSON: tweet list with pagination |
 | Fetch X Articles | `fetch_tweet.py --article` | Camofox | JSON: full long-form text |
+| Fetch X Lists tweets | `fetch_tweet.py --list` | Camofox | JSON: tweet list with pagination |
 | Monitor @mentions | `fetch_tweet.py --monitor` | Camofox | JSON: new mentions since last check |
 | **Monitor @mentions via Nitter** | `x_mentions_nitter.py` | Camofox | JSON: new mentions (fast, real-time) |
 | **Search WeChat articles** | `sogou_wechat.py` | None | JSON: title, url, author, date |
