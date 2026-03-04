@@ -479,17 +479,19 @@ def _parse_stats_from_text(raw: str) -> tuple:
         return text_part, nums[0], 0, nums[1], 0
 
     # Private-use unicode icon stats (from replies page or some Nitter versions)
+    # Icon stats: \ue803=replies \ue80c=retweets \ue801=likes \ue800=views
     icon_match = re.search(
-        r"^(.*?)\s*\ue803\s*(\d+)\s*\ue80c\s*\ue801\s*(\d+)\s*\ue800\s*(\d+)",
+        r"\ue803\s*(\d+)\s*\ue80c\s*(\d+)\s*\ue801\s*(\d+)\s*\ue800",
         raw,
     )
     if icon_match:
+        prefix = raw[:icon_match.start()].strip()
         return (
-            icon_match.group(1).strip(),
+            prefix,
+            int(icon_match.group(1)),
             int(icon_match.group(2)),
-            0,
             int(icon_match.group(3)),
-            int(icon_match.group(4)),
+            0,
         )
 
     # No stats found — clean any icon chars and return raw text
@@ -498,57 +500,47 @@ def _parse_stats_from_text(raw: str) -> tuple:
 
 
 def parse_timeline_snapshot(snapshot: str, limit: int = 20) -> List[Dict]:
-    """Parse Nitter user timeline page snapshot into tweet list.
+    """Parse Nitter user/list timeline page snapshot into tweet list.
 
-    Nitter snapshot format (Camofox aria snapshot):
-      Page starts with a TOC section (bare link anchors with no surrounding content),
-      then the actual tweet cards follow. Each tweet card:
-
-        - link [eN]:           ← tweet permalink (url ends with /status/ID#m)
-        - link [eN]:           ← (optional) avatar/profile link
-        - link "AuthorName":   ← author display name
-        - text: ...            ← (optional blank)
-        - link "@handle":      ← author @handle
-        - link "10h":          ← timestamp (url also points to /status/ID#m)
-        - link "#hashtag":     ← optional hashtags / inline links
-        - text: tweet content  1  5  1,234   ← text (+ optional trailing stats)
-        - link [eN]:           ← optional media (url has /pic/orig/media%2F...)
-        - text:  1   7  541    ← optional separate stats-only line after media
+    Handles retweets (``XXX retweeted``), quoted tweets (nested status
+    anchors), and inline @mentions split across multiple text/link lines.
     """
     tweets = []
     lines = snapshot.split("\n")
     n = len(lines)
 
     # ── Step 1: collect all bare-link tweet anchors ────────────────────────
-    # Format:  "- link [eN]:"  followed by "  - /url: /user/status/DIGITS#m"
-    all_anchors = []  # (line_index, status_path)
+    all_anchors = []  # (line_index, status_path, user, status_id)
     for i in range(n - 1):
         line = lines[i].strip()
         if not re.match(r'^- link \[e\d+\]:$', line):
             continue
         url_line = lines[i + 1].strip()
-        url_match = re.match(r'^- /url:\s+(/\w+/status/(\d+)#m)$', url_line)
+        url_match = re.match(r'^- /url:\s+(/(\w+)/status/(\d+)#m)$', url_line)
         if url_match:
-            all_anchors.append((i, url_match.group(1)))
+            all_anchors.append((i, url_match.group(1), url_match.group(2), url_match.group(3)))
 
     # ── Step 2: separate TOC anchors from content anchors ─────────────────
-    # TOC anchors appear in the top section where consecutive anchors are packed
-    # together (next line after the /url: is another anchor or a nav list).
-    # Content anchors have author name / text within a window of ~5 lines.
     def _is_content_anchor(anchor_idx: int) -> bool:
-        """True if this anchor is followed by author/text (not another anchor)."""
-        i, _ = all_anchors[anchor_idx]
-        # Look at lines i+2 … i+8 for a named link or text
+        i = all_anchors[anchor_idx][0]
         for j in range(i + 2, min(n, i + 8)):
             stripped = lines[j].strip()
             if re.match(r'^- link "[^"]+"\s*(\[e\d+\])?:?$', stripped):
-                return True   # named link → content
+                return True
             if stripped.startswith("- text:"):
-                return True   # text line → content
+                return True
             if re.match(r'^- link \[e\d+\]:$', stripped):
-                return False  # another bare link → still in TOC
+                # Could be avatar/profile link — check if its URL is a
+                # profile (no /status/) vs another tweet anchor
+                if j + 1 < n:
+                    next_url = lines[j + 1].strip()
+                    url_m = re.match(r'^- /url:\s+(/\w+)$', next_url)
+                    if url_m:
+                        # Profile link (e.g. /username) — skip, keep looking
+                        continue
+                return False
             if stripped.startswith("- list:"):
-                return False  # nav list → still in header area
+                return False
         return False
 
     content_anchors = [
@@ -556,28 +548,87 @@ def parse_timeline_snapshot(snapshot: str, limit: int = 20) -> List[Dict]:
         if _is_content_anchor(idx)
     ]
 
-    # ── Step 3: parse each content tweet block ─────────────────────────────
-    for idx, (start_i, tweet_path) in enumerate(content_anchors):
-        if len(tweets) >= limit:
-            break
+    # ── Step 2b: for each anchor, check if "retweeted" appears within ─────
+    # 5 lines after it. If so, the anchor's tweet was retweeted by someone.
+    # Also detect if a second status anchor appears in the same block (= quote).
+    
+    # First, build tweet card boundaries.
+    # Each card starts at an anchor. A card ends where the next card starts.
+    # But a "quoted" anchor (second anchor inside a card) is NOT a card start.
+    #
+    # Heuristic: an anchor is a "quote" if the anchor immediately before it
+    # (in content_anchors) has a different user AND this anchor appears
+    # within 30 lines AND there is NO "retweeted" marker between them.
+    # Actually simpler: a quote anchor's user differs from the preceding
+    # card's primary user, AND there's tweet text between them.
+    
+    # Simpler approach: just mark anchors that have a "retweeted" line
+    # within lines [anchor+1 .. anchor+5]. Those are primary card anchors.
+    # Non-retweeted anchors that have tweet text before them from the
+    # previous anchor are quotes.
+    
+    # Let's just use the fact that a quoted tweet's anchor appears AFTER
+    # the main tweet's text content. So if we see text content (not just
+    # author/handle/time) between anchor N-1 and anchor N, then N is a quote.
 
-        end_i = content_anchors[idx + 1][0] if idx + 1 < len(content_anchors) else n
+    primary_indices = [0]  # first anchor is always primary
+    quoted_set = set()     # indices into content_anchors that are quotes
 
+    for idx in range(1, len(content_anchors)):
+        prev_i = content_anchors[idx - 1][0]
+        curr_i = content_anchors[idx][0]
+        
+        # A quoted tweet appears AFTER the main tweet text but BEFORE
+        # the stats line. If we see a stats-only line between anchors,
+        # that means the previous tweet's content is complete and this
+        # anchor starts a NEW card, not a quote.
+        has_tweet_text = False
+        has_stats_line = False
+        for j in range(prev_i + 2, curr_i):
+            stripped = lines[j].strip()
+            if stripped.startswith("- text:"):
+                raw = stripped[len("- text:"):].strip()
+                if not raw:
+                    continue
+                if re.search(r"retweeted\s*$", raw, re.I):
+                    continue
+                if raw == "Replying to":
+                    continue
+                # Check for stats-only line (e.g. "  7  9  83 ")
+                _, rc, rt, lk, vw = _parse_stats_from_text(raw)
+                if lk or rc or vw:
+                    tp = raw
+                    stat_m = re.search(r"\s{2,}\d[\d,]*\s{2,}\d[\d,]*", raw)
+                    if stat_m:
+                        tp = raw[:stat_m.start()].strip()
+                    if len(tp) <= 15:
+                        has_stats_line = True
+                        continue
+                if len(raw) > 15:
+                    has_tweet_text = True
+
+        # If prev anchor is itself a quote, curr can't be a quote of a quote
+        prev_is_quote = (idx - 1) in quoted_set
+        
+        # Quote only if: has text, NO stats line after it, and prev isn't a quote
+        if has_tweet_text and not has_stats_line and not prev_is_quote:
+            quoted_set.add(idx)
+        else:
+            primary_indices.append(idx)
+
+    # ── Helper to parse a block of lines into tweet fields ────────────────
+    def _parse_block(start, end):
         author_name = None
         author_handle = None
         time_ago = None
-        text_parts: List[str] = []
+        text_parts = []
         stats_set = False
-        likes = 0
-        retweets = 0
-        replies_count = 0
-        views = 0
+        likes = rt_count = replies_count = views = 0
         media_urls = []
 
-        for j in range(start_i, min(end_i, start_i + 60)):
+        for j in range(start, min(end, start + 80)):
             line = lines[j].strip()
 
-            # Author display name: - link "Name" [eN]: or - link "Name":
             if not author_name:
                 m = re.match(r'^- link "([^@#][^"]*?)"\s*(\[e\d+\])?:?$', line)
                 if m:
@@ -595,13 +646,11 @@ def parse_timeline_snapshot(snapshot: str, limit: int = 20) -> List[Dict]:
                     if not skip:
                         author_name = name
 
-            # Author @handle
             if not author_handle:
                 m = re.match(r'^- link "@(\w+)"\s*(\[e\d+\])?:?$', line)
                 if m:
-                    author_handle = f"@{m.group(1)}"
+                    author_handle = "@" + m.group(1)
 
-            # Timestamp
             if not time_ago:
                 m = re.match(r'^- link "(\d+[smhd])"\s*(\[e\d+\])?:?$', line)
                 if m:
@@ -611,62 +660,99 @@ def parse_timeline_snapshot(snapshot: str, limit: int = 20) -> List[Dict]:
                 if m:
                     time_ago = m.group(1)
 
-            # Text lines (may be multiple for multi-para tweets or embedded @mentions)
             if line.startswith("- text:"):
                 raw = line[len("- text:"):].strip()
                 if not raw:
                     continue
+                if re.match(r'^.+\s+retweeted\s*$', raw):
+                    continue
+                if raw == "Replying to":
+                    continue
                 text_part, rc, rt, lk, vw = _parse_stats_from_text(raw)
-                if lk or rc:
-                    # Stats found — capture only once
-                    if not stats_set:
-                        likes = lk
-                        retweets = rt
-                        replies_count = rc
-                        views = vw
-                        stats_set = True
+                if (lk or rc or vw) and not stats_set:
+                    likes, rt_count, replies_count, views = lk, rt, rc, vw
+                    stats_set = True
                 if text_part:
-                    # Skip label-like lines
                     skip_labels = {"pinned tweet", "retweeted", ""}
                     if text_part.strip().lower() not in skip_labels:
                         text_parts.append(text_part.strip())
 
-            # Media URL
-            url_match = re.match(r'^- /url:\s+(/pic/orig/(.+))$', line)
-            if url_match:
-                encoded = url_match.group(2)
-                decoded = urllib.parse.unquote(encoded)
+            url_m = re.match(r'^- /url:\s+(/pic/orig/(.+))$', line)
+            if url_m:
+                decoded = urllib.parse.unquote(url_m.group(2))
                 if decoded.startswith("media/"):
-                    media_file = decoded[6:]
-                    media_url = f"https://pbs.twimg.com/media/{media_file}"
-                    if media_url not in media_urls:
-                        media_urls.append(media_url)
+                    mu = "https://pbs.twimg.com/media/" + decoded[6:]
+                    if mu not in media_urls:
+                        media_urls.append(mu)
 
         tweet_text = " ".join(text_parts).strip() if text_parts else None
+        if not tweet_text or not author_handle:
+            return None
+        entry = {
+            "author": author_handle,
+            "author_name": author_name or author_handle,
+            "text": tweet_text,
+            "time_ago": time_ago or "",
+            "likes": likes, "retweets": rt_count,
+            "replies": replies_count, "views": views,
+        }
+        if media_urls:
+            entry["media"] = media_urls
+        return entry
 
-        if tweet_text and author_handle:
-            tweet_entry = {
-                "author": author_handle,
-                "author_name": author_name or author_handle,
-                "text": tweet_text,
-                "time_ago": time_ago or "",
-                "likes": likes,
-                "retweets": retweets,
-                "replies": replies_count,
-                "views": views,
-            }
-            if media_urls:
-                tweet_entry["media"] = media_urls
+    # ── Step 3: parse each primary tweet card ──────────────────────────────
+    for pi_pos, pi in enumerate(primary_indices):
+        if len(tweets) >= limit:
+            break
 
-            # Deduplicate by (author, text)
-            key = (author_handle, tweet_text[:80])
-            if not any(
-                (t["author"], t["text"][:80]) == key
-                for t in tweets
-            ):
-                tweets.append(tweet_entry)
+        start_i = content_anchors[pi][0]
+        # End at next primary anchor
+        if pi_pos + 1 < len(primary_indices):
+            end_i = content_anchors[primary_indices[pi_pos + 1]][0]
+        else:
+            end_i = n
+
+        # Detect "retweeted" marker within first 5 lines after anchor
+        retweeted_by = None
+        for j in range(start_i + 1, min(start_i + 6, n)):
+            stripped = lines[j].strip()
+            if stripped.startswith("- text:"):
+                raw = stripped[len("- text:"):].strip()
+                rt_m = re.match(r'^(.+?)\s+retweeted\s*$', raw)
+                if rt_m:
+                    retweeted_by = rt_m.group(1).strip()
+                    break
+
+        # Find quoted tweet anchor (if any)
+        quote_start = end_i
+        for qidx in range(pi + 1, len(content_anchors)):
+            if content_anchors[qidx][0] >= end_i:
+                break
+            if qidx in quoted_set:
+                quote_start = content_anchors[qidx][0]
+                break
+
+        # Parse main tweet (up to quote boundary)
+        entry = _parse_block(start_i, quote_start)
+        if not entry:
+            continue
+
+        if retweeted_by:
+            entry["retweeted_by"] = retweeted_by
+
+        # Parse quoted tweet
+        if quote_start < end_i:
+            q_entry = _parse_block(quote_start, end_i)
+            if q_entry:
+                entry["quoted_tweet"] = q_entry
+
+        # Deduplicate
+        key = (entry["author"], entry["text"][:80])
+        if not any((t["author"], t["text"][:80]) == key for t in tweets):
+            tweets.append(entry)
 
     return tweets
+
 
 
 def parse_replies_snapshot(snapshot: str, original_author: str) -> List[Dict]:
