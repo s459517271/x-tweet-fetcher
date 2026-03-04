@@ -489,17 +489,20 @@ def _parse_stats_from_text(raw: str) -> tuple:
 
     # Private-use unicode icon stats (from replies page or some Nitter versions)
     # Icon stats: \ue803=replies \ue80c=retweets \ue801=likes \ue800=views
+    # Numbers are OPTIONAL — Nitter omits them when value is 0
     icon_match = re.search(
-        r"\ue803\s*(\d[\d,]*)\s*\ue80c\s*(\d[\d,]*)\s*\ue801\s*(\d[\d,]*)\s*\ue800",
+        r"\ue803\s*(\d[\d,]*)?\s*\ue80c\s*(\d[\d,]*)?\s*\ue801\s*(\d[\d,]*)?\s*\ue800",
         raw,
     )
     if icon_match:
         prefix = raw[:icon_match.start()].strip()
+        def _icon_int(g):
+            return int(g.replace(",", "")) if g else 0
         return (
             prefix,
-            int(icon_match.group(1).replace(",", "")),
-            int(icon_match.group(2).replace(",", "")),
-            int(icon_match.group(3).replace(",", "")),
+            _icon_int(icon_match.group(1)),
+            _icon_int(icon_match.group(2)),
+            _icon_int(icon_match.group(3)),
             0,
         )
 
