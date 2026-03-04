@@ -455,7 +455,16 @@ def _parse_stats_from_text(raw: str) -> tuple:
     Nitter renders stats as plain numbers separated by spaces (no icon chars on timeline).
     Returns (cleaned_text, replies, retweets, likes, views).
     """
-    # Pattern: text content followed by 2–4 space-separated numbers at end
+    # Pattern 0: stats-only line (no text prefix), e.g. " 7  9  83 " or "  6  3  39 "
+    stat_only = re.match(
+        r"^\s*(\d[\d,]*)\s{2,}(\d[\d,]*)\s{2,}(\d[\d,]*)\s*[^\d]*$",
+        raw.rstrip(),
+    )
+    if stat_only:
+        nums = [int(stat_only.group(i).replace(",", "")) for i in (1, 2, 3)]
+        return "", nums[0], nums[1], nums[2], 0
+
+    # Pattern 1: text content followed by 2–4 space-separated numbers at end
     # e.g. "我已经打通...  1   22  4,418"
     # Numbers may have commas (thousands separator)
     stat_match = re.search(
@@ -481,16 +490,16 @@ def _parse_stats_from_text(raw: str) -> tuple:
     # Private-use unicode icon stats (from replies page or some Nitter versions)
     # Icon stats: \ue803=replies \ue80c=retweets \ue801=likes \ue800=views
     icon_match = re.search(
-        r"\ue803\s*(\d+)\s*\ue80c\s*(\d+)\s*\ue801\s*(\d+)\s*\ue800",
+        r"\ue803\s*(\d[\d,]*)\s*\ue80c\s*(\d[\d,]*)\s*\ue801\s*(\d[\d,]*)\s*\ue800",
         raw,
     )
     if icon_match:
         prefix = raw[:icon_match.start()].strip()
         return (
             prefix,
-            int(icon_match.group(1)),
-            int(icon_match.group(2)),
-            int(icon_match.group(3)),
+            int(icon_match.group(1).replace(",", "")),
+            int(icon_match.group(2).replace(",", "")),
+            int(icon_match.group(3).replace(",", "")),
             0,
         )
 
