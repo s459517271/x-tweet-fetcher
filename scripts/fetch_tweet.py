@@ -8,6 +8,7 @@ Modes:
   --user <username>        Fetch user timeline via Camofox + Nitter
   --article <URL_or_ID>    Fetch X Article (long-form) full text via Camofox
   --monitor @username      Monitor X mentions (incremental, cron-friendly)
+  --list <list_url_or_id>  Fetch tweets from an X List via Camofox + Nitter
 
 Note on --article mode:
   X Articles (x.com/i/article/...) require X login to view the full content.
@@ -103,6 +104,14 @@ _MESSAGES = {
             "参考: https://github.com/openclaw/camofox"
         ),
         "monitor_header": "@{username} 的新 mentions ({count} 条)",
+        # list mode
+        "list_header": "X List {list_id} — 最新 {count} 条推文",
+        "err_invalid_list": "无法解析 List URL 或 ID: {input}",
+        "err_camofox_not_running_list": (
+            "Camofox 未在 localhost:{port} 运行。"
+            "使用 --list 前请先启动 Camofox。"
+            "参考: https://github.com/openclaw/camofox"
+        ),
     },
     "en": {
         "opening_via_camofox": "[x-tweet-fetcher] Opening {url} via Camofox...",
@@ -119,7 +128,7 @@ _MESSAGES = {
             "See: https://github.com/openclaw/camofox"
         ),
         "err_snapshot_failed": "Failed to get page snapshot from Camofox",
-        "err_mutually_exclusive": "Error: --user and --url are mutually exclusive",
+        "err_mutually_exclusive": "Error: --user, --url, --article, --monitor, and --list are mutually exclusive",
         "err_no_input": "Error: provide --url or --user",
         "err_prefix": "Error: ",
         "warn_no_tweets": (
@@ -165,6 +174,14 @@ _MESSAGES = {
             "See: https://github.com/openclaw/camofox"
         ),
         "monitor_header": "New mentions for @{username} ({count})",
+        # list mode
+        "list_header": "X List {list_id} — latest {count} tweets",
+        "err_invalid_list": "Cannot parse List URL or ID: {input}",
+        "err_camofox_not_running_list": (
+            "Camofox is not running on localhost:{port}. "
+            "Please start Camofox before using --list. "
+            "See: https://github.com/openclaw/camofox"
+        ),
     },
 }
 
@@ -986,6 +1003,119 @@ def fetch_user_timeline(
     return result
 
 
+def extract_list_id(input_str: str) -> Optional[str]:
+    """Extract list ID from a URL or raw ID string.
+
+    Accepts:
+      - Pure numeric ID:           "123456789"
+      - List URL:                 "https://x.com/i/lists/123456789"
+      - List URL (twitter.com):  "https://twitter.com/i/lists/123456789"
+      - List URL (no scheme):    "x.com/i/lists/123456789"
+
+    Returns the list ID string (digits only), or None if unparseable.
+    """
+    input_str = input_str.strip()
+
+    # Pure numeric ID
+    if re.match(r'^\d+$', input_str):
+        return input_str
+
+    # URL containing /i/lists/<id>
+    m = re.search(r'/i/lists/(\d+)', input_str)
+    if m:
+        return m.group(1)
+
+    return None
+
+
+def fetch_list_tweets(
+    list_id: str,
+    limit: int = 20,
+    camofox_port: int = 9377,
+    nitter_instance: str = "nitter.net",
+) -> Dict[str, Any]:
+    """Fetch tweets from an X List via Camofox + Nitter, with multi-page support.
+
+    When limit > ~20 (one page), automatically follows Nitter's cursor-based
+    pagination until enough tweets are collected or no more pages exist.
+    """
+    result = {"list_id": list_id, "limit": limit}
+
+    if not check_camofox(camofox_port):
+        result["error"] = t("err_camofox_not_running_list", port=camofox_port)
+        return result
+
+    tweets: List[Dict] = []
+    cursor: Optional[str] = None
+    page = 1
+    MAX_PAGES = 10  # safety cap — never fetch more than ~200 tweets
+
+    while len(tweets) < limit and page <= MAX_PAGES:
+        if cursor:
+            encoded = urllib.parse.quote(cursor, safe="")
+            nitter_url = f"https://{nitter_instance}/i/lists/{list_id}?cursor={encoded}"
+        else:
+            nitter_url = f"https://{nitter_instance}/i/lists/{list_id}"
+
+        print(
+            f"[x-tweet-fetcher] 翻页 {page}/{MAX_PAGES} — {nitter_url}",
+            file=sys.stderr,
+        )
+
+        snapshot = camofox_fetch_page(
+            nitter_url,
+            session_key=f"list-{list_id}-p{page}",
+            wait=8,
+            port=camofox_port,
+        )
+
+        if not snapshot:
+            if page == 1:
+                result["error"] = t("err_snapshot_failed")
+                return result
+            # Partial failure on later pages — stop gracefully
+            print(f"[x-tweet-fetcher] 第 {page} 页快照失败，停止翻页", file=sys.stderr)
+            break
+
+        remaining = limit - len(tweets)
+        new_tweets = parse_timeline_snapshot(snapshot, limit=remaining)
+
+        # Deduplicate across pages by (author, text[:80])
+        seen = {(tw["author"], tw["text"][:80]) for tw in tweets}
+        for tw in new_tweets:
+            key = (tw["author"], tw["text"][:80])
+            if key not in seen:
+                tweets.append(tw)
+                seen.add(key)
+
+        print(
+            f"[x-tweet-fetcher] 第 {page} 页: +{len(new_tweets)} 条，累计 {len(tweets)} 条",
+            file=sys.stderr,
+        )
+
+        if len(new_tweets) == 0:
+            break  # no tweets on this page — Nitter probably rate-limited
+
+        # Extract cursor for next page
+        cursor = extract_next_cursor(snapshot)
+        if not cursor:
+            break  # no more pages
+
+        page += 1
+        if len(tweets) < limit:
+            time.sleep(2)  # be polite between pages
+
+    result["tweets"] = tweets
+    result["count"] = len(tweets)
+    result["pages_fetched"] = page
+
+    if len(tweets) == 0:
+        result["warning"] = t("warn_no_tweets")
+
+    return result
+
+
+
 def fetch_tweet_replies(
     url: str,
     camofox_port: int = 9377,
@@ -1454,6 +1584,7 @@ def main():
             "  --user <username>        User timeline via Camofox + Nitter\n"
             "  --article <URL_or_ID>    X Article full text via Camofox\n"
             "  --monitor @username      Monitor X mentions (incremental, cron-friendly)\n"
+            "  --list <list_url_or_id>  Fetch tweets from an X List via Camofox + Nitter\n"
             "\n"
             "Note: --article requires Camofox. X Articles also require X login\n"
             "for full content; without login only public preview is captured.\n"
@@ -1468,6 +1599,8 @@ def main():
                         help="X Article URL (https://x.com/i/article/ID) or bare article ID")
     parser.add_argument("--monitor", "-m", metavar="@USERNAME",
                         help="Monitor X mentions for a username (requires Camofox)")
+    parser.add_argument("--list", "-l", metavar="LIST_URL_OR_ID",
+                        help="Fetch tweets from an X List (URL or ID, requires Camofox)")
     parser.add_argument("--limit", type=int, default=50, help="Max tweets for --user / max results for --monitor (default: 50 for --user, 10 for --monitor)")
     parser.add_argument("--replies", "-r", action="store_true", help="Fetch replies (requires Camofox)")
     parser.add_argument("--pretty", "-p", action="store_true", help="Pretty print JSON")
@@ -1486,7 +1619,7 @@ def main():
     _lang = args.lang
 
     # Count how many primary modes are requested
-    _modes = [bool(args.url), bool(args.user), bool(args.article), bool(args.monitor)]
+    _modes = [bool(args.url), bool(args.user), bool(args.article), bool(args.monitor), bool(args.list)]
     if sum(_modes) > 1:
         print(t("err_mutually_exclusive"), file=sys.stderr)
         sys.exit(1)
@@ -1616,6 +1749,42 @@ def main():
                 stats = f"     ❤ {r['likes']}  💬 {r['replies']}  👁 {r['views']}"
                 if r.get("media"):
                     stats += "  " + t("media_label_with_urls", n=len(r["media"]), urls=", ".join(r["media"]))
+                print(stats)
+                print()
+        else:
+            print(json.dumps(result, ensure_ascii=False, indent=indent))
+
+        if result.get("error"):
+            sys.exit(1)
+        return
+
+    # ── Mode 4: X List tweets ─────────────────────────────────────────────
+    if args.list:
+        # Extract list_id from input
+        list_id = extract_list_id(args.list)
+        if not list_id:
+            print(t("err_prefix") + t("err_invalid_list", input=args.list), file=sys.stderr)
+            sys.exit(1)
+
+        result = fetch_list_tweets(
+            list_id,
+            limit=args.limit,
+            camofox_port=args.port,
+            nitter_instance=args.nitter,
+        )
+
+        if args.text_only:
+            if result.get("error"):
+                print(t("err_prefix") + result["error"], file=sys.stderr)
+                sys.exit(1)
+            tweets = result.get("tweets", [])
+            print(t("list_header", list_id=list_id, count=len(tweets)) + "\n")
+            for idx, tw in enumerate(tweets, 1):
+                print(f"[{idx}] {tw['author_name']} ({tw['author']}) · {tw.get('time_ago', '')}")
+                print(f"     {tw['text']}")
+                stats = f"     ❤ {tw['likes']}  💬 {tw['replies']}  👁 {tw['views']}"
+                if tw.get("media"):
+                    stats += "  " + t("media_label", n=len(tw["media"]))
                 print(stats)
                 print()
         else:
