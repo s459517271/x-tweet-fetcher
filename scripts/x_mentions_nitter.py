@@ -18,8 +18,10 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'skills/our/x-t
 from camofox_client import camofox_fetch_page
 
 USERNAME = "YuLin807"
-CACHE_FILE = "/tmp/x-mentions-nitter-cache.json"
-RESULT_FILE = "/tmp/x-mentions-nitter-latest.json"
+CACHE_DIR = os.path.join(os.path.dirname(__file__), '..', 'data')
+os.makedirs(CACHE_DIR, exist_ok=True)
+CACHE_FILE = os.path.join(CACHE_DIR, "x-mentions-nitter-cache.json")
+RESULT_FILE = os.path.join(CACHE_DIR, "x-mentions-nitter-latest.json")
 NITTER_URL = f"https://nitter.net/search?f=tweets&q=%40{USERNAME}"
 
 def parse_mentions(snapshot):
@@ -85,9 +87,20 @@ def main():
     mentions = parse_mentions(snapshot)
     print(f"📊 解析到 {len(mentions)} 条 mentions")
     
-    # 对比缓存找新的
+    # 对比缓存找新的，且只保留近期（24h内）的
     cache = load_cache()
-    new_mentions = [m for m in mentions if m.get('tweet_id') not in cache]
+    RECENT_TIMES = {'m', 'h'}  # 分钟和小时级别算近期
+    new_mentions = []
+    for m in mentions:
+        if m.get('tweet_id') in cache:
+            continue
+        # 时间过滤：只有 Nm/Nh/Nd(d<=1) 算新的，周/月级别跳过
+        t = m.get('time', '')
+        if t and t[-1] == 'd' and t[:-1].isdigit() and int(t[:-1]) > 1:
+            continue  # 超过1天的跳过
+        if t and not any(t.endswith(u) for u in ('m', 'h', 'd')):
+            continue  # "Feb 26" 这种绝对日期跳过
+        new_mentions.append(m)
     
     # 更新缓存
     all_ids = cache | {m['tweet_id'] for m in mentions if 'tweet_id' in m}
