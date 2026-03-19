@@ -506,26 +506,63 @@ def _name_plausibly_matches_handle(author_name: str, handle: str) -> bool:
     return last in handle.lower()
 
 
+_brave_disabled = False  # module-level flag to avoid repeated 429s
+
+
+def _brave_scrape_twitter(query: str) -> list[str]:
+    """Scrape Brave Search HTML for Twitter/X handles. Zero API key needed."""
+    global _brave_disabled
+    if _brave_disabled:
+        return []
+    try:
+        url = f'https://search.brave.com/search?q={urllib.parse.quote(query)}'
+        req = urllib.request.Request(url, headers={
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Accept': 'text/html',
+        })
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            html = resp.read().decode('utf-8', errors='ignore')
+        handles = re.findall(r'(?:twitter\.com|x\.com)/(@?[A-Za-z0-9_]+)', html)
+        skip = {'home', 'share', 'intent', 'i', 'search', 'hashtag', 'status',
+                'explore', 'settings', 'login', 'signup', 'tos', 'privacy'}
+        seen = set()
+        clean = []
+        for h in handles:
+            h = h.lstrip('@')
+            if h.lower() not in skip and h not in seen and not h.isdigit() and len(h) > 1:
+                seen.add(h)
+                clean.append(h)
+        return clean
+    except urllib.error.HTTPError as e:
+        if e.code == 429:
+            _brave_disabled = True  # Don't retry Brave this session
+        return []
+    except Exception:
+        return []
+
+
 def _search_web(query: str, max_results: int = 5) -> list[dict]:
-    """Search via SearxNG (preferred) or DuckDuckGo fallback."""
-    # SearxNG first — local instance, no rate limits, uses Brave engine
-    searxng_urls = [
-        "http://127.0.0.1:8080",
-        "http://localhost:8080",
-    ]
+    """Search chain: Brave HTML scrape → SearxNG → DuckDuckGo."""
+    # 1. Brave HTML scraping (zero deps, zero API key)
+    handles = _brave_scrape_twitter(query)
+    if handles:
+        return [{"url": f"https://x.com/{h}", "snippet": ""} for h in handles[:max_results]]
+
+    # 2. SearxNG (local instance, if available)
+    searxng_urls = ["http://127.0.0.1:8080", "http://localhost:8080"]
     for base in searxng_urls:
         try:
             url = f"{base}/search?q={urllib.parse.quote(query)}&format=json&categories=general"
             raw = _get(url, timeout=10)
             if isinstance(raw, dict) and raw.get("results"):
                 return [
-                    {"url": r.get("url",""), "snippet": r.get("content","")}
+                    {"url": r.get("url", ""), "snippet": r.get("content", "")}
                     for r in raw["results"][:max_results]
                 ]
         except Exception:
             pass
 
-    # DuckDuckGo fallback
+    # 3. DuckDuckGo (pip optional)
     try:
         from duckduckgo_search import DDGS
         import warnings
