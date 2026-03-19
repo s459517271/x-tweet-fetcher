@@ -223,9 +223,7 @@ def search_github_for_paper(title: str, token: str | None = None) -> list[str]:
         except Exception:
             pass
 
-    return [r if r.startswith('http') else
-            f"https://{r}" if 'github.com' in r else
-            f"https://github.com/{r}"
+    return [f"https://{r}" if not r.startswith('http') else r
             for r in [r.lstrip('/') for r in repos[:3]]]
 
 
@@ -353,50 +351,22 @@ def _match_github_to_author(profile: dict, authors: list[str]) -> str | None:
     return best_match if best_score >= 4 else None
 
 
-def _guess_github_usernames(author_name: str) -> list[str]:
-    """Generate plausible GitHub username guesses from an author name.
-    Profile pages (github.com/{user}) are NOT rate-limited like search."""
+def search_github_users_for_author(author_name: str, token: str | None = None) -> str | None:
+    """
+    Find an author's Twitter via GitHub user search (HTML scraping).
+    Direct search — no guessing, no wasted requests.
+    Returns twitter handle or None.
+    """
     parts = author_name.strip().split()
     if len(parts) < 2:
-        return [author_name.lower().replace(" ", "")]
-    # Clean parts (remove dots, single letters)
-    parts = [p.rstrip(".") for p in parts if len(p.rstrip(".")) > 0]
-    if len(parts) < 2:
-        return []
+        return None
 
-    first = parts[0].lower()
-    last = parts[-1].lower()
-    first_i = first[0] if first else ""
-
-    guesses = [
-        f"{first}{last}",        # noamshazeer
-        f"{first}-{last}",       # noam-shazeer
-        f"{first}_{last}",       # noam_shazeer
-        f"{last}{first}",        # shazeernoam
-        f"{first[0]}{last}",     # nshazeer
-        f"{last}{first[0]}",     # shazeern
-        f"{last}-{first}",       # shazeer-noam
-        f"{last}",               # shazeer (if unique enough)
-        f"{first}{last[0]}",     # noams
-    ]
-    # Remove too-short guesses (< 4 chars) and duplicates
-    seen = set()
-    unique = []
-    for g in guesses:
-        g = re.sub(r'[^a-z0-9_-]', '', g)  # clean non-ascii
-        if len(g) >= 4 and g not in seen:
-            seen.add(g)
-            unique.append(g)
-    return unique
-
-
-def _github_user_search_html(author_name: str) -> str | None:
-    """Search GitHub users by name via HTML scraping. Slower but works on VPS."""
     query = urllib.parse.quote(author_name)
     url = f"https://github.com/search?q={query}&type=users"
     html = _get(url, timeout=15)
     if not isinstance(html, str) or len(html) < 1000:
         return None
+
     # Extract usernames from search results
     logins = re.findall(r'href="/([a-zA-Z0-9](?:[a-zA-Z0-9]|-(?=[a-zA-Z0-9])){0,37})"[^>]*data-', html)
     if not logins:
@@ -421,41 +391,6 @@ def _github_user_search_html(author_name: str) -> str | None:
                 return handle
         if len(seen) >= 3:  # Max 3 profiles per search
             break
-    return None
-
-
-def search_github_users_for_author(author_name: str, token: str | None = None) -> str | None:
-    """
-    Find an author's Twitter: first guess profile URLs (fast, no rate limit),
-    then fall back to GitHub user search (slower, needs rate limit respect).
-    Returns twitter handle or None.
-    """
-    parts = author_name.strip().split()
-    if len(parts) < 2:
-        return None
-
-    # Phase 1: Direct profile URL guessing (zero rate limit)
-    guesses = _guess_github_usernames(author_name)
-    norm_author = _normalize_name(author_name)
-    author_parts = norm_author.split()
-
-    for username in guesses:
-        time.sleep(REQUEST_DELAY)
-        profile = _scrape_github_profile(username)
-        if not profile or not profile.get("name"):
-            continue
-        gh_name = _normalize_name(profile["name"])
-        if len(author_parts) >= 2 and all(p in gh_name for p in author_parts):
-            handle = extract_twitter_from_profile(profile)
-            if handle:
-                return handle
-
-    # Phase 2: GitHub user search (rate limited, but works for most users)
-    time.sleep(3)  # Respect rate limit
-    result = _github_user_search_html(author_name)
-    if result:
-        return result
-
     return None
 
 
