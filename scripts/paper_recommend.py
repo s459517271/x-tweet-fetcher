@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from __future__ import annotations
 """
 paper_recommend.py — 论文推荐工具
 
