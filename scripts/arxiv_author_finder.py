@@ -471,8 +471,8 @@ def search_twitter_for_author(author_name: str, affiliation: str = "") -> str | 
     Returns twitter handle or None.
     """
     queries = [
-        f'"{author_name}" twitter.com',
-        f'"{author_name}" site:x.com',
+        f'"{author_name}" site:x.com OR site:twitter.com',
+        f'"{author_name}" twitter',
     ]
     if affiliation:
         queries.insert(0, f'"{author_name}" "{affiliation}" twitter')
@@ -507,18 +507,8 @@ def _name_plausibly_matches_handle(author_name: str, handle: str) -> bool:
 
 
 def _search_web(query: str, max_results: int = 5) -> list[dict]:
-    """Search via DuckDuckGo or Camofox."""
-    try:
-        from duckduckgo_search import DDGS
-        import warnings
-        warnings.filterwarnings("ignore")
-        results = DDGS().text(query, max_results=max_results)
-        if results:
-            return results
-    except Exception:
-        pass
-
-    # Fallback: local SearxNG at 127.0.0.1:8080 or VPS localhost:8080
+    """Search via SearxNG (preferred) or DuckDuckGo fallback."""
+    # SearxNG first — local instance, no rate limits, uses Brave engine
     searxng_urls = [
         "http://127.0.0.1:8080",
         "http://localhost:8080",
@@ -534,6 +524,17 @@ def _search_web(query: str, max_results: int = 5) -> list[dict]:
                 ]
         except Exception:
             pass
+
+    # DuckDuckGo fallback
+    try:
+        from duckduckgo_search import DDGS
+        import warnings
+        warnings.filterwarnings("ignore")
+        results = DDGS().text(query, max_results=max_results)
+        if results:
+            return results
+    except Exception:
+        pass
 
     return []
 
