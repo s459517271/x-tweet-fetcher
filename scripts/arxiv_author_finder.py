@@ -267,6 +267,90 @@ class ArxivAuthorFinder:
         self.skip_search = skip_search
         self.verbose = verbose
 
+    def find_from_github(self, github_url: str) -> dict:
+        """
+        Find author X/Twitter accounts from a GitHub repo URL.
+        Extracts authors from README BibTeX/author section, then searches for X links.
+        No ArXiv dependency.
+        """
+        m = GITHUB_REPO_RE.match(github_url.rstrip("/"))
+        if not m:
+            raise ValueError(f"Invalid GitHub repo URL: {github_url}")
+        owner, repo = m.group(1), m.group(2)
+
+        if self.verbose:
+            print(f"[INFO] Fetching GitHub repo: {github_url}", file=sys.stderr)
+
+        # Fetch README
+        readme_text = None
+        for branch in ["main", "master", "HEAD"]:
+            url = f"https://raw.githubusercontent.com/{owner}/{repo}/{branch}/README.md"
+            readme_text = http_get(url, timeout=15)
+            if isinstance(readme_text, str) and len(readme_text) > 50:
+                break
+            readme_text = None
+
+        if not readme_text:
+            raise RuntimeError(f"Cannot fetch README from {github_url}")
+
+        # Extract title
+        title = repo.replace("-", " ").replace("_", " ")
+        # Try PDF filename
+        pdf_m = re.search(r'\[(?:\*{0,2})(?:Paper|paper|PDF|pdf)(?:\*{0,2})\]\(([^)]+\.pdf)\)', readme_text)
+        if pdf_m:
+            pdf_name = pdf_m.group(1).rsplit('/', 1)[-1]
+            pdf_name = re.sub(r'\.pdf$', '', pdf_name)
+            pdf_title = re.sub(r'\s+', ' ', pdf_name.replace('_', ' ').replace('-', ' ').strip())
+            if len(pdf_title) > 15:
+                title = pdf_title
+        # Try H1 title
+        title_m = re.search(r'^#\s+(.+)', readme_text, re.MULTILINE)
+        if title_m:
+            raw_title = re.sub(r'[\*\[\]`]', '', title_m.group(1)).strip()
+            if ':' in raw_title:
+                full_part = raw_title.split(':', 1)[1].strip()
+                if len(full_part) > 10:
+                    title = full_part
+            elif len(raw_title) > 5:
+                title = raw_title
+
+        # Extract authors from BibTeX
+        authors = []
+        bib_m = re.search(r'author\s*=\s*\{([^}]+)\}', readme_text)
+        if bib_m:
+            raw = bib_m.group(1).replace('\n', ' ')
+            authors = [a.strip().rstrip(',') for a in raw.split(' and ') if a.strip() and len(a.strip()) > 2][:15]
+            authors = [' '.join(reversed(a.split(', '))) if ', ' in a else a for a in authors]
+        # Fallback: Authors: line
+        if not authors:
+            author_m = re.search(r'Authors?\s*[:\-]\s*([^\n]+)', readme_text, re.IGNORECASE)
+            if author_m:
+                raw = re.sub(r'[\*\[\]`]', '', author_m.group(1)).strip()
+                authors = [a.strip() for a in re.split(r'[,;·•]', raw) if a.strip() and len(a.strip()) > 2][:15]
+
+        if not authors:
+            raise RuntimeError(f"Cannot extract authors from {github_url} README")
+
+        if self.verbose:
+            print(f"[INFO] Paper: {title[:60]}", file=sys.stderr)
+            print(f"[INFO] Authors ({len(authors)}): {', '.join(authors)}", file=sys.stderr)
+
+        # Check for ArXiv ID in README (optional, for metadata enrichment)
+        arxiv_id = None
+        arxiv_m = re.search(r'arxiv\.org/(?:abs|pdf)/([0-9]{4}\.[0-9]{4,5})', readme_text)
+        if arxiv_m:
+            arxiv_id = arxiv_m.group(1)
+
+        paper = {
+            "title": title,
+            "authors": authors,
+            "github_urls": [github_url],
+            "arxiv_id": arxiv_id,
+        }
+
+        # Now run the same X-finding pipeline
+        return self._find_twitter_for_paper(paper)
+
     def find(self, arxiv_url_or_id: str) -> dict:
         """
         Returns:
@@ -288,11 +372,20 @@ class ArxivAuthorFinder:
 
         authors = paper["authors"]
         github_urls = paper["github_urls"]
+        paper["arxiv_id"] = arxiv_id
 
         if self.verbose:
             print(f"[INFO] Paper: {paper['title'][:60]}", file=sys.stderr)
             print(f"[INFO] Authors ({len(authors)}): {', '.join(authors)}", file=sys.stderr)
             print(f"[INFO] GitHub URLs found: {github_urls}", file=sys.stderr)
+
+        return self._find_twitter_for_paper(paper)
+
+    def _find_twitter_for_paper(self, paper: dict) -> dict:
+        """Common pipeline: given paper dict with title/authors/github_urls, find X accounts."""
+        authors = paper["authors"]
+        github_urls = paper.get("github_urls", [])
+        arxiv_id = paper.get("arxiv_id")
 
         results: dict[str, dict] = {a: {"handle": None, "url": None, "source": None, "confidence": None} for a in authors}
 
@@ -351,11 +444,13 @@ class ArxivAuthorFinder:
         total = len(authors)
         coverage = found_count / total * 100 if total > 0 else 0
 
+        arxiv_url = f"https://arxiv.org/abs/{arxiv_id}" if arxiv_id else None
+
         return {
             "paper": {
                 "title": paper["title"],
                 "arxiv_id": arxiv_id,
-                "arxiv_url": f"https://arxiv.org/abs/{arxiv_id}",
+                "arxiv_url": arxiv_url,
                 "authors": authors,
                 "github_urls": github_urls,
             },
@@ -373,16 +468,19 @@ class ArxivAuthorFinder:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Discover X/Twitter accounts of arxiv paper authors",
+        description="Discover X/Twitter accounts of paper authors",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
   python3 arxiv_author_finder.py --arxiv 2603.10165
   python3 arxiv_author_finder.py --arxiv https://arxiv.org/abs/1706.03762 --json
+  python3 arxiv_author_finder.py --github https://github.com/EverMind-AI/MSA -v
   python3 arxiv_author_finder.py --arxiv 2603.10165 --scholars-db scholars.csv
         """
     )
-    parser.add_argument("--arxiv", "-a", required=True, help="arxiv ID or URL (e.g. 2603.10165)")
+    source = parser.add_mutually_exclusive_group(required=True)
+    source.add_argument("--arxiv", "-a", help="arxiv ID or URL (e.g. 2603.10165)")
+    source.add_argument("--github", "-g", help="GitHub repo URL (e.g. https://github.com/EverMind-AI/MSA)")
     parser.add_argument("--scholars-db", "-s", help="Path to Scholars on Twitter CSV dataset")
     parser.add_argument("--skip-search", action="store_true", help="Skip web search fallback (faster, less coverage)")
     parser.add_argument("--json", "-j", action="store_true", help="Output raw JSON")
@@ -396,7 +494,10 @@ Examples:
     )
 
     try:
-        output = finder.find(args.arxiv)
+        if args.github:
+            output = finder.find_from_github(args.github)
+        else:
+            output = finder.find(args.arxiv)
     except Exception as e:
         print(f"[ERROR] {e}", file=sys.stderr)
         sys.exit(1)
@@ -410,8 +511,9 @@ Examples:
     summary = output["summary"]
 
     print(f"\n  Paper: {paper['title']}")
-    print(f"  arxiv: {paper['arxiv_url']}")
-    if paper["github_urls"]:
+    if paper.get("arxiv_url"):
+        print(f"  arxiv: {paper['arxiv_url']}")
+    if paper.get("github_urls"):
         print(f"  GitHub: {', '.join(paper['github_urls'])}")
     print()
     print(f"  {'Author':<30} {'Twitter':<40} {'Source':<20} {'Confidence'}")
