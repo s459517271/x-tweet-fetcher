@@ -4,11 +4,10 @@ from __future__ import annotations
 paper_recommend.py — 论文推荐工具
 
 从 X 推文 / GitHub 仓库 / ArXiv ID / 论文标题 出发，提取论文信息，
-通过 OpenAlex (主) / Semantic Scholar (备) 查找相关论文（cited-by、references、同作者），
+通过 OpenAlex API 查找相关论文（cited-by、references、同作者），
 反向查找作者 X/Twitter 账号。
 
-OpenAlex: 完全免费、无需 API Key、无限流。250M+ 论文。
-Semantic Scholar: 可选 fallback（需 API Key 避免 429）。
+OpenAlex: 完全免费、无需 API Key、不限流。250M+ 论文。
 
 Usage:
   python3 paper_recommend.py --tweet https://x.com/user/status/123456
@@ -37,12 +36,9 @@ import xml.etree.ElementTree as ET
 # ─── Config ───────────────────────────────────────────────────────────────────
 
 OPENALEX_API = "https://api.openalex.org"
-SEMANTIC_SCHOLAR_API = "https://api.semanticscholar.org/graph/v1"
 ARXIV_API = "https://export.arxiv.org/api/query?id_list={arxiv_id}"
-REQUEST_DELAY = 0.2  # OpenAlex is generous; S2 needs 1s but we only fallback
+REQUEST_DELAY = 0.2  # OpenAlex is generous with rate limits
 
-# Optional API keys (set via environment variables for higher rate limits)
-S2_API_KEY = os.environ.get("S2_API_KEY") or os.environ.get("SEMANTIC_SCHOLAR_API_KEY")
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
 # OpenAlex "polite pool": set email for faster responses (optional)
 OPENALEX_EMAIL = os.environ.get("OPENALEX_EMAIL", "")
@@ -78,45 +74,6 @@ def _get(url: str, headers: dict | None = None, timeout: int = 20) -> dict | str
         print(f"[WARN] Request failed: {e}", file=sys.stderr)
         return None
 
-
-def _s2_get_with_backoff(path: str, params: str = "", retries: int = 3) -> dict | None:
-    """
-    Semantic Scholar API GET with exponential backoff on 429.
-    Retries up to `retries` times with delays: 1s → 2s → 4s
-    """
-    url = f"{SEMANTIC_SCHOLAR_API}{path}"
-    if params:
-        url += f"?{params}"
-
-    headers = {}
-    if S2_API_KEY:
-        headers["x-api-key"] = S2_API_KEY
-
-    for attempt in range(retries + 1):
-        time.sleep(REQUEST_DELAY)
-        result = _get(url, headers=headers if headers else None)
-
-        if isinstance(result, dict):
-            return result
-        if result is None:
-            # 404 or other non-retryable error — don't retry
-            return None
-        if result == "RATE_LIMITED" and attempt < retries:
-            delay = 2 ** attempt  # 1, 2, 4 seconds
-            print(f"[WARN] S2 request failed (attempt {attempt + 1}/{retries + 1}), "
-                  f"retrying in {delay}s...", file=sys.stderr)
-            time.sleep(delay)
-        elif result == "RATE_LIMITED":
-            print(f"[ERROR] S2 request failed after {retries + 1} attempts", file=sys.stderr)
-        else:
-            return None  # Non-dict, non-rate-limited response
-
-    return None
-
-
-def _s2_get(path: str, params: str = "") -> dict | None:
-    """Semantic Scholar API GET — uses backoff helper."""
-    return _s2_get_with_backoff(path, params)
 
 
 # ─── ArXiv helpers ────────────────────────────────────────────────────────────
@@ -254,7 +211,7 @@ def extract_from_tweet(tweet_url: str) -> dict | None:
     # Try to extract a paper title from the text (first line or quoted text)
     lines = [l.strip() for l in text.split("\n") if l.strip() and len(l.strip()) > 20]
     if lines:
-        # Search Semantic Scholar by title
+        # Search by title
         return search_paper_by_title(lines[0][:200])
 
     print("[ERROR] Could not find paper info in tweet", file=sys.stderr)
@@ -313,47 +270,24 @@ def extract_from_github(github_url: str) -> dict | None:
 
 
 def search_paper_by_title(title: str) -> dict | None:
-    """Search for a paper by title. OpenAlex first, S2 fallback."""
-    # Try OpenAlex first (no rate limit)
+    """Search for a paper by title via OpenAlex."""
     print(f"[INFO] Searching OpenAlex for: {title[:60]}...", file=sys.stderr)
     oa_paper = oa_find_paper(title=title)
-    if oa_paper:
-        oa_work = _oa_work_to_paper(oa_paper)
-        arxiv_id = (oa_work.get("externalIds") or {}).get("ArXiv")
-        if arxiv_id:
-            info = fetch_arxiv_metadata(arxiv_id)
-            if info:
-                return info
-        # Return OpenAlex data
-        authors = [a.get("name", "") for a in oa_work.get("authors", [])]
-        return {
-            "arxiv_id": arxiv_id,
-            "title": oa_work.get("title", title),
-            "authors": authors,
-            "abstract": oa_work.get("abstract", ""),
-            "github_urls": [],
-            "s2_paper_id": None,
-        }
-
-    # Fallback to S2
-    print(f"[INFO] Searching S2 for: {title[:60]}...", file=sys.stderr)
-    query = urllib.parse.quote(title[:200])
-    data = _s2_get("/paper/search", f"query={query}&limit=1&fields=externalIds,title,authors")
-    if not data or not data.get("data"):
+    if not oa_paper:
         return None
-    paper = data["data"][0]
-    ext = paper.get("externalIds", {})
-    arxiv_id = ext.get("ArXiv")
+    oa_work = _oa_work_to_paper(oa_paper)
+    arxiv_id = (oa_work.get("externalIds") or {}).get("ArXiv")
     if arxiv_id:
-        return fetch_arxiv_metadata(arxiv_id)
-    authors = [a.get("name", "") for a in paper.get("authors", [])]
+        info = fetch_arxiv_metadata(arxiv_id)
+        if info:
+            return info
+    authors = [a.get("name", "") for a in oa_work.get("authors", [])]
     return {
         "arxiv_id": arxiv_id,
-        "title": paper.get("title", title),
+        "title": oa_work.get("title", title),
         "authors": authors,
-        "abstract": "",
+        "abstract": oa_work.get("abstract", ""),
         "github_urls": [],
-        "s2_paper_id": paper.get("paperId"),
     }
 
 
@@ -534,49 +468,7 @@ def find_related_openalex(paper_info: dict, top_n: int = 5) -> list[dict]:
     return ranked[:top_n]
 
 
-# ─── Semantic Scholar engine (fallback) ──────────────────────────────────────
 
-def get_s2_paper(arxiv_id: str = None, title: str = None, s2_id: str = None) -> dict | None:
-    """Get Semantic Scholar paper data."""
-    fields = "paperId,externalIds,title,authors,year,citationCount,influentialCitationCount,abstract,url"
-
-    if s2_id:
-        return _s2_get(f"/paper/{s2_id}", f"fields={fields}")
-    if arxiv_id:
-        return _s2_get(f"/paper/ArXiv:{arxiv_id}", f"fields={fields}")
-    if title:
-        query = urllib.parse.quote(title[:200])
-        data = _s2_get("/paper/search", f"query={query}&limit=1&fields={fields}")
-        if data and data.get("data"):
-            return data["data"][0]
-    return None
-
-
-def get_citations(paper_id: str, limit: int = 50) -> list[dict]:
-    """Get papers that cite this paper (cited-by)."""
-    fields = "paperId,externalIds,title,authors,year,citationCount,abstract,url"
-    data = _s2_get(f"/paper/{paper_id}/citations", f"fields={fields}&limit={limit}")
-    if not data:
-        return []
-    return [c.get("citingPaper", {}) for c in data.get("data", []) if c.get("citingPaper")]
-
-
-def get_references(paper_id: str, limit: int = 50) -> list[dict]:
-    """Get papers referenced by this paper."""
-    fields = "paperId,externalIds,title,authors,year,citationCount,abstract,url"
-    data = _s2_get(f"/paper/{paper_id}/references", f"fields={fields}&limit={limit}")
-    if not data:
-        return []
-    return [r.get("citedPaper", {}) for r in data.get("data", []) if r.get("citedPaper")]
-
-
-def get_author_papers(author_id: str, limit: int = 20) -> list[dict]:
-    """Get recent papers by an author."""
-    fields = "paperId,externalIds,title,authors,year,citationCount,abstract,url"
-    data = _s2_get(f"/author/{author_id}/papers", f"fields={fields}&limit={limit}")
-    if not data:
-        return []
-    return data.get("data", [])
 
 
 def rank_and_dedupe(papers: list[dict], source_paper_id: str = None) -> list[dict]:
@@ -599,63 +491,8 @@ def rank_and_dedupe(papers: list[dict], source_paper_id: str = None) -> list[dic
 
 
 def find_related_papers(paper_info: dict, top_n: int = 5) -> list[dict]:
-    """
-    Find top-N related papers.
-    Strategy: OpenAlex first (free, no key), Semantic Scholar as fallback.
-    """
-    # Try OpenAlex first (primary — no API key needed)
-    results = find_related_openalex(paper_info, top_n=top_n)
-    if results:
-        return results
-
-    # Fallback to Semantic Scholar
-    print("[INFO] OpenAlex returned no results, trying Semantic Scholar...", file=sys.stderr)
-    return _find_related_s2(paper_info, top_n=top_n)
-
-
-def _find_related_s2(paper_info: dict, top_n: int = 5) -> list[dict]:
-    """Fallback: find related papers via Semantic Scholar."""
-    arxiv_id = paper_info.get("arxiv_id")
-    s2_id = paper_info.get("s2_paper_id")
-    title = paper_info.get("title", "")
-
-    print("[INFO] Looking up paper on Semantic Scholar...", file=sys.stderr)
-    s2_paper = get_s2_paper(arxiv_id=arxiv_id, title=title, s2_id=s2_id)
-    if not s2_paper:
-        print("[WARN] Paper not found on Semantic Scholar", file=sys.stderr)
-        return []
-
-    paper_id = s2_paper["paperId"]
-    print(f"[INFO] S2 paper: {s2_paper.get('title', '')[:60]}", file=sys.stderr)
-    print(f"[INFO] Citations: {s2_paper.get('citationCount', 0)}", file=sys.stderr)
-
-    all_candidates = []
-
-    print("[INFO] Fetching citations (S2)...", file=sys.stderr)
-    citations = get_citations(paper_id, limit=30)
-    for p in citations:
-        p["_source"] = "cited_by"
-    all_candidates.extend(citations)
-
-    print("[INFO] Fetching references (S2)...", file=sys.stderr)
-    references = get_references(paper_id, limit=30)
-    for p in references:
-        p["_source"] = "reference"
-    all_candidates.extend(references)
-
-    s2_authors = s2_paper.get("authors", [])
-    for author in s2_authors[:2]:
-        author_id = author.get("authorId")
-        if not author_id:
-            continue
-        print(f"[INFO] Fetching papers by {author.get('name', 'unknown')} (S2)...", file=sys.stderr)
-        author_papers = get_author_papers(author_id, limit=10)
-        for p in author_papers:
-            p["_source"] = "same_author"
-        all_candidates.extend(author_papers)
-
-    ranked = rank_and_dedupe(all_candidates, paper_id)
-    return ranked[:top_n]
+    """Find top-N related papers via OpenAlex."""
+    return find_related_openalex(paper_info, top_n=top_n)
 
 
 # ─── Author Twitter finder ────────────────────────────────────────────────────
@@ -943,7 +780,7 @@ Examples:
     group.add_argument("--tweet", "-t", help="X/Twitter URL containing paper link")
     group.add_argument("--github", "-g", help="GitHub repo URL for the paper")
     group.add_argument("--arxiv", "-a", help="ArXiv ID or URL (e.g. 2603.10165)")
-    group.add_argument("--title", help="Paper title to search for (uses Semantic Scholar)")
+    group.add_argument("--title", help="Paper title to search for")
     parser.add_argument("--top", "-n", type=int, default=5, help="Number of recommendations (default: 5)")
     parser.add_argument("--json", "-j", action="store_true", help="Output raw JSON")
     parser.add_argument("--zh", action="store_true", help="Simplified Chinese output")
@@ -973,7 +810,7 @@ Examples:
     print(f"\n  Found: {paper_info.get('title', 'Unknown')}", file=sys.stderr)
     print(f"  Authors: {', '.join(paper_info.get('authors', [])[:5])}", file=sys.stderr)
 
-    # Step 2: Find related papers via Semantic Scholar
+    # Step 2: Find related papers via OpenAlex
     recommendations = find_related_papers(paper_info, top_n=args.top)
     if not recommendations:
         print("[WARN] No recommendations found", file=sys.stderr)
