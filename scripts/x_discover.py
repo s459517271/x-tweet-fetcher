@@ -24,8 +24,8 @@ import urllib.parse
 from datetime import datetime
 from pathlib import Path
 
-SEARXNG_URL = "http://localhost:8080/search"
-MAC_BRIDGE = "http://localhost:17891"
+from config import MAC_BRIDGE, GEMINI_SCRIPT
+from common import search_web
 
 
 def verify_freshness(finds, today_str=None):
@@ -60,10 +60,11 @@ If unsure, mark fresh=true. Be strict only on obviously old content."""
     
     # 1. Local Gemini first (VPS direct, fastest & most reliable)
     try:
-        script_dir = Path(__file__).resolve().parent.parent.parent
-        gemini_script = script_dir / "gemini-chat" / "scripts" / "gemini_chat.py"
-        if not gemini_script.exists():
-            gemini_script = Path("/root/clawd/skills/our/gemini-chat/scripts/gemini_chat.py")
+        if GEMINI_SCRIPT:
+            gemini_script = Path(GEMINI_SCRIPT)
+        else:
+            script_dir = Path(__file__).resolve().parent.parent.parent
+            gemini_script = script_dir / "gemini-chat" / "scripts" / "gemini_chat.py"
         r = subprocess.run(
             ["python3", str(gemini_script), prompt[:3000], "--model", "flash"],
             capture_output=True, text=True, timeout=45
@@ -131,78 +132,6 @@ If unsure, mark fresh=true. Be strict only on obviously old content."""
             f["freshness_note"] = f"parse error: {ai_response[:100]}"
     
     return finds
-
-
-def search_searxng(query, max_results=10, fresh=False):
-    """Search via local SearxNG instance (zero-cost, real-time)"""
-    try:
-        params = {
-            "q": query,
-            "format": "json",
-            "categories": "general",
-            "engines": "google,duckduckgo,brave,bing",
-            "pageno": 1,
-        }
-        if fresh:
-            params["time_range"] = "week"
-        
-        url = f"{SEARXNG_URL}?{urllib.parse.urlencode(params)}"
-        req = urllib.request.Request(url, headers={"Accept": "application/json"})
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            data = json.loads(resp.read())
-        
-        results = []
-        for r in data.get("results", [])[:max_results]:
-            results.append({
-                "title": r.get("title", ""),
-                "url": r.get("url", ""),
-                "snippet": r.get("content", ""),
-                "publishedDate": r.get("publishedDate", ""),
-            })
-        return results
-    except Exception as e:
-        print(f"SearxNG failed: {e}", file=sys.stderr)
-        return []
-
-
-def search_ddg(query, max_results=5):
-    """Fallback: DuckDuckGo search"""
-    try:
-        from duckduckgo_search import DDGS
-        import warnings
-        warnings.filterwarnings("ignore")
-        ddgs = DDGS()
-        results = ddgs.text(query, max_results=max_results)
-        if results:
-            return [{"title": r.get("title", ""), "url": r.get("href", ""), "snippet": r.get("body", "")} for r in results]
-    except Exception:
-        pass
-    return []
-
-
-def search_web(query, max_results=5, fresh=False):
-    """Search with fallback chain: SearxNG → DuckDuckGo → Camofox"""
-    # SearxNG first (local, fast, real-time)
-    results = search_searxng(query, max_results=max_results, fresh=fresh)
-    if results:
-        return results
-    
-    # DuckDuckGo fallback
-    results = search_ddg(query, max_results=max_results)
-    if results:
-        return results
-
-    # Camofox fallback
-    try:
-        from camofox_client import camofox_search
-        results = camofox_search(query)
-        if results:
-            return results[:max_results]
-    except Exception:
-        pass
-
-    print(f"All search backends failed for: {query[:40]}...", file=sys.stderr)
-    return []
 
 
 def url_hash(url):
