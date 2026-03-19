@@ -39,7 +39,6 @@ OPENALEX_API = "https://api.openalex.org"
 ARXIV_API = "https://export.arxiv.org/api/query?id_list={arxiv_id}"
 REQUEST_DELAY = 0.2  # OpenAlex is generous with rate limits
 
-GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
 # OpenAlex "polite pool": set email for faster responses (optional)
 OPENALEX_EMAIL = os.environ.get("OPENALEX_EMAIL", "")
 
@@ -65,8 +64,8 @@ def _get(url: str, headers: dict | None = None, timeout: int = 20) -> dict | str
                 return raw
     except urllib.error.HTTPError as e:
         if e.code == 429:
-            print(f"[WARN] Rate limited (429), will retry with backoff", file=sys.stderr)
-            return "RATE_LIMITED"  # Signal to caller to retry
+            print(f"[WARN] Rate limited (429) — {url[:80]}", file=sys.stderr)
+            return None
         if e.code != 404:
             print(f"[WARN] HTTP {e.code} — {url[:80]}", file=sys.stderr)
         return None
@@ -78,21 +77,26 @@ def _get(url: str, headers: dict | None = None, timeout: int = 20) -> dict | str
 
 # ─── ArXiv helpers ────────────────────────────────────────────────────────────
 
+def _strip_arxiv_version(arxiv_id: str) -> str:
+    """Strip version suffix (e.g. '1706.03762v5' → '1706.03762')."""
+    return re.sub(r'v\d+$', '', arxiv_id)
+
+
 def parse_arxiv_id(text: str) -> str | None:
     """Extract arxiv ID from URL or raw text."""
     text = text.strip().rstrip("/")
     m = ARXIV_URL_RE.search(text)
     if m:
-        return re.sub(r'v\d+$', '', m.group(1)) if re.search(r'v\d+$', m.group(1)) else m.group(1)
+        return _strip_arxiv_version(m.group(1))
     m = ARXIV_ID_RE.search(text)
     if m:
-        return m.group(1)
+        return _strip_arxiv_version(m.group(1))
     return None
 
 
 def fetch_arxiv_metadata(arxiv_id: str) -> dict | None:
     """Fetch paper metadata from ArXiv API."""
-    clean_id = re.sub(r'v\d+$', '', arxiv_id)
+    clean_id = _strip_arxiv_version(arxiv_id)
     url = ARXIV_API.format(arxiv_id=urllib.parse.quote(clean_id))
     raw = _get(url, timeout=20)
     if not isinstance(raw, str):
@@ -306,7 +310,7 @@ def _oa_get(url: str) -> dict | None:
 def oa_find_paper(arxiv_id: str = None, title: str = None, doi: str = None) -> dict | None:
     """Find a paper on OpenAlex by ArXiv ID, DOI, or title search."""
     if arxiv_id:
-        clean = re.sub(r'v\d+$', '', arxiv_id)
+        clean = _strip_arxiv_version(arxiv_id)
         # Best method: use OpenAlex external ID lookup via DOI
         # ArXiv papers often have DOI: 10.48550/arXiv.XXXX.XXXXX
         doi_url = f"https://doi.org/10.48550/arXiv.{clean}"
@@ -318,7 +322,7 @@ def oa_find_paper(arxiv_id: str = None, title: str = None, doi: str = None) -> d
         if data and data.get("id"):
             return data
     if title:
-        q = urllib.parse.quote(title[:200])
+        q = urllib.parse.quote(title[:200], safe='')  # escape commas/colons to prevent filter injection
         data = _oa_get(f"{OPENALEX_API}/works?filter=title.search:{q}&per_page=1&sort=cited_by_count:desc")
         if data and data.get("results"):
             return data["results"][0]
@@ -346,7 +350,7 @@ def _oa_work_to_paper(w: dict, source: str = "") -> dict:
         lid = (loc.get("landing_page_url") or "")
         m = ARXIV_URL_RE.search(lid)
         if m:
-            arxiv_id = re.sub(r'v\d+$', '', m.group(1))
+            arxiv_id = _strip_arxiv_version(m.group(1))
             ext_ids["ArXiv"] = arxiv_id
             break
 
