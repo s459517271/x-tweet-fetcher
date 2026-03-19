@@ -46,8 +46,8 @@ X has no free API. Scraping gets you blocked. Browser automation is fragile.
 | Chinese platforms | partial | ✅ | Weibo/Bilibili/CSDN/WeChat |
 | User profile analysis | — | ✅ + LLM | MBTI, Big Five, topic graph |
 | **X-Tracker** (growth) | ✅ | — | burst detection, propagation analysis |
-| **Paper Recommend** | ✅ | — | related papers via Semantic Scholar |
-| **Author Finder** | ✅ | — | arxiv paper → author Twitter handles |
+| **Paper Recommend** | ✅ | — | related papers via OpenAlex (250M+ papers) |
+| **Author Finder** | ✅ | — | arxiv/GitHub → author X/Twitter profiles |
 
 > **For AI Agents**: All output is structured JSON. Import as Python modules for direct integration. Exit codes are cron-friendly (`0`=nothing new, `1`=new content).
 
@@ -340,6 +340,7 @@ export GITHUB_TOKEN="your-token"   # https://github.com/settings/tokens
 | **Runtime** | Python 3.7+ | — |
 | **Basic tweets** | Nothing else | — |
 | **Advanced features** | [Camofox](https://github.com/jo-inc/camofox-browser) | `duckduckgo-search` (pip) |
+| **Academic Paper Mode** | Nothing else | `pip install duckduckgo-search` (improves author search coverage) |
 | **Profile analysis** | Camofox + LLM API key | — |
 
 ## 🤝 Contributing
