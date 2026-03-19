@@ -230,36 +230,43 @@ def extract_from_github(github_url: str) -> dict | None:
         return None
     owner, repo = m.group(1), m.group(2)
 
-    # Check README for arxiv link
-    for branch in ["main", "master"]:
-        readme_url = f"https://raw.githubusercontent.com/{owner}/{repo}/{branch}/README.md"
-        readme = _get(readme_url, timeout=15)
-        if isinstance(readme, str) and len(readme) > 50:
-            arxiv_id = parse_arxiv_id(readme)
-            if arxiv_id:
-                info = fetch_arxiv_metadata(arxiv_id)
-                if info:
-                    if github_url not in info.get("github_urls", []):
-                        info.setdefault("github_urls", []).append(github_url)
-                    return info
-            break  # README found (even without arxiv link), skip other branches
-
-    # Try to extract paper title from README
+    # Fetch README once
     readme_text = None
     for branch in ["main", "master", "HEAD"]:
         readme_url = f"https://raw.githubusercontent.com/{owner}/{repo}/{branch}/README.md"
-        readme_text = _get(readme_url, timeout=10)
-        if isinstance(readme_text, str) and len(readme_text) > 20:
+        readme_text = _get(readme_url, timeout=15)
+        if isinstance(readme_text, str) and len(readme_text) > 50:
             break
         readme_text = None
 
-    titles_to_try = []
     if isinstance(readme_text, str):
-        # Extract title from first markdown heading: "# MSA: Memory Sparse Attention"
+        # 1. Check README for arxiv link
+        arxiv_id = parse_arxiv_id(readme_text)
+        if arxiv_id:
+            info = fetch_arxiv_metadata(arxiv_id)
+            if info:
+                if github_url not in info.get("github_urls", []):
+                    info.setdefault("github_urls", []).append(github_url)
+                return info
+
+        # 2. Extract paper title from PDF link filename
+        #    e.g. [Paper](./paper/Some_Long_Paper_Title.pdf) → "Some Long Paper Title"
+        pdf_m = re.search(r'\[(?:\*{0,2})(?:Paper|paper|PDF|pdf)(?:\*{0,2})\]\(([^)]+\.pdf)\)', readme_text)
+        if pdf_m:
+            pdf_name = pdf_m.group(1).rsplit('/', 1)[-1]  # get filename
+            pdf_name = re.sub(r'\.pdf$', '', pdf_name)
+            pdf_title = pdf_name.replace('_', ' ').replace('-', ' ').strip()
+            # Clean up multiple spaces
+            pdf_title = re.sub(r'\s+', ' ', pdf_title)
+            if len(pdf_title) > 15:
+                print(f"[INFO] Paper title from PDF filename: {pdf_title[:60]}...", file=sys.stderr)
+
+        # 3. Extract from first markdown heading: "# MSA: Memory Sparse Attention"
+        titles_to_try = []
         title_m = re.search(r'^#\s+(.+)', readme_text, re.MULTILINE)
         if title_m:
             raw_title = re.sub(r'[\*\[\]`]', '', title_m.group(1)).strip()
-            # If title has "ABBR: Full Name" pattern, try the full name part first
+            # "ABBR: Full Name" → try full name first (more specific)
             if ':' in raw_title:
                 full_part = raw_title.split(':', 1)[1].strip()
                 if len(full_part) > 10:
@@ -267,24 +274,79 @@ def extract_from_github(github_url: str) -> dict | None:
             if len(raw_title) > 5:
                 titles_to_try.append(raw_title)
 
-    # Last resort: repo name
-    titles_to_try.append(repo.replace("-", " ").replace("_", " "))
+        # Add PDF-derived title (very specific, good for search)
+        if pdf_m and len(pdf_title) > 15:
+            titles_to_try.insert(0, pdf_title)
 
-    for title in titles_to_try:
-        result = search_paper_by_title(title)
-        if result:
-            if github_url not in result.get("github_urls", []):
-                result.setdefault("github_urls", []).append(github_url)
-            return result
+        # Last resort: repo name
+        titles_to_try.append(repo.replace("-", " ").replace("_", " "))
+
+        for title in titles_to_try:
+            result = search_paper_by_title(title)
+            if result:
+                if github_url not in result.get("github_urls", []):
+                    result.setdefault("github_urls", []).append(github_url)
+                return result
+
+        # Paper not in any database yet (too new) — build info from README directly
+        best_title = titles_to_try[0] if titles_to_try else repo
+        # Extract authors from README
+        authors = []
+        # Try BibTeX author field: author = {Name1 and Name2 and ...}
+        bib_m = re.search(r'author\s*=\s*\{([^}]+)\}', readme_text)
+        if bib_m:
+            raw = bib_m.group(1).replace('\n', ' ')
+            authors = [a.strip().rstrip(',') for a in raw.split(' and ') if a.strip() and len(a.strip()) > 2][:10]
+            # Convert "Last, First" to "First Last"
+            authors = [' '.join(reversed(a.split(', '))) if ', ' in a else a for a in authors]
+        if not authors:
+            # Try "Authors:" line
+            author_m = re.search(r'Authors?\s*[:\-]\s*([^\n]+)', readme_text, re.IGNORECASE)
+            if author_m:
+                raw = re.sub(r'[\*\[\]`]', '', author_m.group(1)).strip()
+                authors = [a.strip() for a in re.split(r'[,;·•]', raw) if a.strip() and len(a.strip()) > 2][:10]
+        # Extract abstract from README ## Abstract section
+        abstract = ""
+        abs_m = re.search(r'##\s*(?:Abstract|📝\s*Abstract)\s*\n+(.+?)(?:\n\n##|\n---)', readme_text, re.DOTALL)
+        if abs_m:
+            abstract = re.sub(r'\s+', ' ', abs_m.group(1).strip())[:500]
+
+        print(f"[INFO] Paper not in databases yet, using README info: {best_title[:60]}", file=sys.stderr)
+        return {
+            "arxiv_id": None,
+            "title": best_title,
+            "authors": authors,
+            "abstract": abstract,
+            "github_urls": [github_url],
+        }
 
     return None
 
 
+def _title_similarity(a: str, b: str) -> float:
+    """Simple word-overlap similarity between two titles."""
+    wa = set(a.lower().split())
+    wb = set(b.lower().split())
+    # Remove common stop words
+    stop = {"a", "an", "the", "of", "for", "and", "in", "on", "to", "with", "by", "is", "at", "from"}
+    wa -= stop
+    wb -= stop
+    if not wa or not wb:
+        return 0.0
+    return len(wa & wb) / max(len(wa), len(wb))
+
+
 def search_paper_by_title(title: str) -> dict | None:
-    """Search for a paper by title via OpenAlex."""
+    """Search for a paper by title via OpenAlex. Validates result relevance."""
     print(f"[INFO] Searching OpenAlex for: {title[:60]}...", file=sys.stderr)
     oa_paper = oa_find_paper(title=title)
     if not oa_paper:
+        return None
+    found_title = oa_paper.get("title") or oa_paper.get("display_name", "")
+    # Verify the result actually matches our search (avoid false positives)
+    sim = _title_similarity(title, found_title)
+    if sim < 0.3:
+        print(f"[WARN] OpenAlex result '{found_title[:50]}' doesn't match query (sim={sim:.2f}), skipping", file=sys.stderr)
         return None
     oa_work = _oa_work_to_paper(oa_paper)
     arxiv_id = (oa_work.get("externalIds") or {}).get("ArXiv")
@@ -333,6 +395,11 @@ def oa_find_paper(arxiv_id: str = None, title: str = None, doi: str = None) -> d
         data = _oa_get(f"{OPENALEX_API}/works?filter=title.search:{q}&per_page=1&sort=cited_by_count:desc")
         if data and data.get("results"):
             return data["results"][0]
+        # Fallback: full-text search — only for longer titles (short ones match too broadly)
+        if len(title) > 20:
+            data = _oa_get(f"{OPENALEX_API}/works?search={q}&per_page=1&sort=relevance_score:desc")
+            if data and data.get("results"):
+                return data["results"][0]
     if arxiv_id:
         # Fallback: search by arxiv ID in title/abstract
         data = _oa_get(f"{OPENALEX_API}/works?search={urllib.parse.quote(arxiv_id)}&per_page=1")
@@ -441,8 +508,22 @@ def find_related_openalex(paper_info: dict, top_n: int = 5) -> list[dict]:
 
     print("[INFO] Looking up paper on OpenAlex...", file=sys.stderr)
     oa_paper = oa_find_paper(arxiv_id=arxiv_id, title=title)
+    # Validate: if found by title search, check it actually matches
+    if oa_paper and not arxiv_id and title:
+        found_title = oa_paper.get("title") or oa_paper.get("display_name", "")
+        sim = _title_similarity(title, found_title)
+        if sim < 0.3:
+            print(f"[WARN] OpenAlex match '{found_title[:50]}' too different (sim={sim:.2f}), treating as not found", file=sys.stderr)
+            oa_paper = None
     if not oa_paper:
-        print("[WARN] Paper not found on OpenAlex", file=sys.stderr)
+        # Paper not in OpenAlex (too new?) — search by keywords from title
+        print("[INFO] Paper not in OpenAlex, searching by title keywords...", file=sys.stderr)
+        q = urllib.parse.quote(title[:200], safe='')
+        data = _oa_get(f"{OPENALEX_API}/works?search={q}&per_page={top_n * 3}&sort=cited_by_count:desc")
+        if data and data.get("results"):
+            candidates = [_oa_work_to_paper(w, "keyword_match") for w in data["results"]]
+            ranked = rank_and_dedupe(candidates, "")
+            return ranked[:top_n]
         return []
 
     oa_id = oa_paper.get("id", "").replace("https://openalex.org/", "")
@@ -644,7 +725,7 @@ def format_paper_zh(p: dict, idx: int, twitter_map: dict) -> str:
     title = p.get("title", "Unknown")
     year = p.get("year") or "?"
     citations = p.get("citationCount", 0) or 0
-    source_label = {"cited_by": "引用", "reference": "参考文献", "same_author": "同作者", "related": "相关"}.get(
+    source_label = {"cited_by": "引用", "reference": "参考文献", "same_author": "同作者", "related": "相关", "keyword_match": "关键词"}.get(
         p.get("_source", ""), p.get("_source", "")
     )
     url = p.get("url", "") or ""
