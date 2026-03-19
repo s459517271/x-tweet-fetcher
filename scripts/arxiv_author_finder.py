@@ -158,10 +158,7 @@ def fetch_arxiv_paper(arxiv_id: str) -> dict:
         "arxiv": "http://arxiv.org/schemas/atom",
     }
     try:
-        # XXE protection: disable DTD and external entities
-        parser = ET.XMLParser()
-        parser.entity = {}
-        root = ET.fromstring(raw, parser=parser)
+        root = ET.fromstring(raw)
     except ET.ParseError as exc:
         raise RuntimeError(f"Malformed XML from arxiv API for {arxiv_id}: {exc}") from exc
     entry = root.find("atom:entry", ns)
@@ -623,7 +620,7 @@ class ArxivAuthorFinder:
             print(f"[INFO] Authors ({len(authors)}): {', '.join(authors)}", file=sys.stderr)
             print(f"[INFO] GitHub URLs found: {github_urls}", file=sys.stderr)
 
-        results: dict[str, dict] = {a: {"handle": None, "source": None, "confidence": None} for a in authors}
+        results: dict[str, dict] = {a: {"handle": None, "url": None, "source": None, "confidence": None} for a in authors}
 
         # Layer 1: GitHub via repo URLs
         if github_urls:
@@ -631,7 +628,7 @@ class ArxivAuthorFinder:
                 found = find_twitter_via_repo(repo_url, authors, self.token)
                 for author, handle in found.items():
                     if results[author]["handle"] is None:
-                        results[author] = {"handle": handle, "source": "github_repo", "confidence": "high"}
+                        results[author] = {"handle": handle, "url": f"https://x.com/{handle}", "source": "github_repo", "confidence": "high"}
                         if self.verbose:
                             print(f"  [GitHub] {author} → @{handle}", file=sys.stderr)
         else:
@@ -643,17 +640,17 @@ class ArxivAuthorFinder:
                 found = find_twitter_via_repo(repo_url, authors, self.token)
                 for author, handle in found.items():
                     if results[author]["handle"] is None:
-                        results[author] = {"handle": handle, "source": "github_search", "confidence": "medium"}
+                        results[author] = {"handle": handle, "url": f"https://x.com/{handle}", "source": "github_search", "confidence": "medium"}
                         if self.verbose:
                             print(f"  [GitHub/search] {author} → @{handle}", file=sys.stderr)
 
         # Layer 1b: GitHub user search for still-missing authors (cap at 8 to bound runtime)
         missing = [a for a, v in results.items() if v["handle"] is None]
         for author in missing[:8]:
-            time.sleep(5)  # 5s delay bypasses GitHub search 429
+            time.sleep(3)  # 3s delay bypasses GitHub search 429
             handle = search_github_users_for_author(author, self.token)
             if handle:
-                results[author] = {"handle": handle, "source": "github_user_search", "confidence": "medium"}
+                results[author] = {"handle": handle, "url": f"https://x.com/{handle}", "source": "github_user_search", "confidence": "medium"}
                 if self.verbose:
                     print(f"  [GitHub/user] {author} → @{handle}", file=sys.stderr)
 
@@ -662,7 +659,7 @@ class ArxivAuthorFinder:
         for author in missing:
             handle = lookup_scholars(author, self.scholars)
             if handle:
-                results[author] = {"handle": handle, "source": "scholars_dataset", "confidence": "high"}
+                results[author] = {"handle": handle, "url": f"https://x.com/{handle}", "source": "scholars_dataset", "confidence": "high"}
                 if self.verbose:
                     print(f"  [Scholars] {author} → @{handle}", file=sys.stderr)
 
@@ -672,7 +669,7 @@ class ArxivAuthorFinder:
             for author in missing:
                 handle = search_twitter_for_author(author)
                 if handle:
-                    results[author] = {"handle": handle, "source": "web_search", "confidence": "low"}
+                    results[author] = {"handle": handle, "url": f"https://x.com/{handle}", "source": "web_search", "confidence": "low"}
                     if self.verbose:
                         print(f"  [Search] {author} → @{handle}", file=sys.stderr)
 
@@ -748,13 +745,13 @@ Examples:
     if paper["github_urls"]:
         print(f"  GitHub: {', '.join(paper['github_urls'])}")
     print()
-    print(f"  {'Author':<30} {'Twitter':<25} {'Source':<20} {'Confidence'}")
-    print("  " + "─" * 85)
+    print(f"  {'Author':<30} {'Twitter':<40} {'Source':<20} {'Confidence'}")
+    print("  " + "─" * 100)
     for author, info in results.items():
-        handle = f"@{info['handle']}" if info["handle"] else "—"
+        twitter = info["url"] if info["url"] else "—"
         source = info["source"] or ""
         conf = info["confidence"] or ""
-        print(f"  {author:<30} {handle:<25} {source:<20} {conf}")
+        print(f"  {author:<30} {twitter:<40} {source:<20} {conf}")
     print()
     print(f"  Coverage: {summary['found']}/{summary['total']} authors ({summary['coverage_pct']}%)")
     print()

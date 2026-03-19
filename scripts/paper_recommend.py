@@ -104,10 +104,7 @@ def fetch_arxiv_metadata(arxiv_id: str) -> dict | None:
 
     ns = {"atom": "http://www.w3.org/2005/Atom", "arxiv": "http://arxiv.org/schemas/atom"}
     try:
-        # XXE protection: disable DTD and external entities
-        parser = ET.XMLParser()
-        parser.entity = {}
-        root = ET.fromstring(raw, parser=parser)
+        root = ET.fromstring(raw)
     except ET.ParseError:
         return None
     entry = root.find("atom:entry", ns)
@@ -725,7 +722,7 @@ def format_paper(p: dict, idx: int, twitter_map: dict) -> str:
     for a in (p.get("authors") or []):
         name = a.get("name", "")
         if name in twitter_map and twitter_map[name]:
-            tw_links.append(f"@{twitter_map[name]}")
+            tw_links.append(f"https://x.com/{twitter_map[name]}")
     if tw_links:
         lines.append(f"     Twitter: {', '.join(tw_links)}")
 
@@ -757,7 +754,7 @@ def format_paper_zh(p: dict, idx: int, twitter_map: dict) -> str:
     for a in (p.get("authors") or []):
         name = a.get("name", "")
         if name in twitter_map and twitter_map[name]:
-            tw.append(f"@{twitter_map[name]}")
+            tw.append(f"https://x.com/{twitter_map[name]}")
     tw_str = f" | 推特: {', '.join(tw)}" if tw else ""
 
     lines = [f"  {idx}. {title}"]
@@ -802,10 +799,14 @@ def format_output(paper_info: dict, recommendations: list[dict], twitter_map: di
             ext = p.get("externalIds", {}) or {}
             if ext.get("ArXiv"):
                 rec["arxiv_id"] = ext["ArXiv"]
+            author_twitter_urls = {}
             for a in (p.get("authors") or []):
                 name = a.get("name", "")
                 if name in twitter_map and twitter_map[name]:
                     rec["author_twitter"][name] = twitter_map[name]
+                    author_twitter_urls[name] = f"https://x.com/{twitter_map[name]}"
+            if author_twitter_urls:
+                rec["author_twitter_urls"] = author_twitter_urls
             output["recommendations"].append(rec)
         return json.dumps(output, ensure_ascii=False, indent=2)
 
@@ -819,7 +820,7 @@ def format_output(paper_info: dict, recommendations: list[dict], twitter_map: di
             author_strs = []
             for a in paper_info['authors'][:5]:
                 if a in twitter_map:
-                    author_strs.append(f"{a} (@{twitter_map[a]})")
+                    author_strs.append(f"{a} (https://x.com/{twitter_map[a]})")
                 else:
                     author_strs.append(a)
             lines.append(f"  Authors: {', '.join(author_strs)}")
@@ -850,7 +851,7 @@ def format_output(paper_info: dict, recommendations: list[dict], twitter_map: di
         author_strs = []
         for a in source_authors[:5]:
             if a in twitter_map:
-                author_strs.append(f"{a} (@{twitter_map[a]})")
+                author_strs.append(f"{a} (https://x.com/{twitter_map[a]})")
             else:
                 author_strs.append(a)
         lines.append(f"  👥 作者: {', '.join(author_strs)}")
@@ -935,8 +936,8 @@ Examples:
             finder_script = os.path.join(os.path.dirname(__file__), "arxiv_author_finder.py")
             if os.path.exists(finder_script):
                 try:
-                    cmd = ["python3", finder_script, "--arxiv", arxiv_id, "--json", "--skip-search"]
-                    result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+                    cmd = ["python3", finder_script, "--arxiv", arxiv_id, "--json"]
+                    result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
                     if result.returncode == 0 and result.stdout.strip():
                         finder_data = json.loads(result.stdout)
                         for name, info in finder_data.get("results", {}).items():
