@@ -338,38 +338,64 @@ def _match_github_to_author(profile: dict, authors: list[str]) -> str | None:
     return best_match if best_score >= 4 else None
 
 
+def _guess_github_usernames(author_name: str) -> list[str]:
+    """Generate plausible GitHub username guesses from an author name.
+    Profile pages (github.com/{user}) are NOT rate-limited like search."""
+    parts = author_name.strip().split()
+    if len(parts) < 2:
+        return [author_name.lower().replace(" ", "")]
+    # Clean parts (remove dots, single letters)
+    parts = [p.rstrip(".") for p in parts if len(p.rstrip(".")) > 0]
+    if len(parts) < 2:
+        return []
+
+    first = parts[0].lower()
+    last = parts[-1].lower()
+    first_i = first[0] if first else ""
+
+    guesses = [
+        f"{first}{last}",        # noamshazeer
+        f"{first}-{last}",       # noam-shazeer
+        f"{first}_{last}",       # noam_shazeer
+        f"{last}{first}",        # shazeernoam
+        f"{first[0]}{last}",     # nshazeer
+        f"{last}{first[0]}",     # shazeern
+        f"{last}-{first}",       # shazeer-noam
+        f"{last}",               # shazeer (if unique enough)
+        f"{first}{last[0]}",     # noams
+    ]
+    # Remove too-short guesses (< 4 chars) and duplicates
+    seen = set()
+    unique = []
+    for g in guesses:
+        g = re.sub(r'[^a-z0-9_-]', '', g)  # clean non-ascii
+        if len(g) >= 4 and g not in seen:
+            seen.add(g)
+            unique.append(g)
+    return unique
+
+
 def search_github_users_for_author(author_name: str, token: str | None = None) -> str | None:
     """
-    Use GitHub user search (HTML scraping) to find an author's Twitter.
+    Find an author's Twitter via GitHub profile guessing (no search API, no 429).
+    Directly probes plausible username URLs — profile pages are not rate-limited.
     Returns twitter handle or None.
     """
     parts = author_name.strip().split()
     if len(parts) < 2:
         return None
 
-    query = urllib.parse.quote(f"{author_name}")
-    url = f"https://github.com/search?q={query}&type=users"
-    html = _get(url, timeout=15)
-    if not isinstance(html, str):
-        return None
+    guesses = _guess_github_usernames(author_name)
+    norm_author = _normalize_name(author_name)
+    author_parts = norm_author.split()
 
-    # Extract usernames from search results
-    logins = re.findall(r'href="/([^/"]+)" data-hydro-click', html)
-    if not logins:
-        logins = re.findall(r'href="/([a-zA-Z0-9_-]+)"[^>]*class="[^"]*Link[^"]*"', html)
-
-    seen = set()
-    for login in logins[:5]:
-        if login in seen or login in ("search", "features", "pricing", "login", "signup", "orgs", "topics"):
-            continue
-        seen.add(login)
-        time.sleep(0.5)  # Longer delay for user search to avoid 429
-        profile = _scrape_github_profile(login)
-        if not profile:
-            continue
-        gh_name = _normalize_name(profile.get("name") or "")
-        norm_author = _normalize_name(author_name)
-        author_parts = norm_author.split()
+    for username in guesses:
+        time.sleep(REQUEST_DELAY)
+        profile = _scrape_github_profile(username)
+        if not profile or not profile.get("name"):
+            continue  # 404 or no display name
+        gh_name = _normalize_name(profile["name"])
+        # Verify name matches
         if len(author_parts) >= 2 and all(p in gh_name for p in author_parts):
             handle = extract_twitter_from_profile(profile)
             if handle:
