@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from __future__ import annotations
 """
 arxiv_author_finder.py — 从 arxiv 论文自动发现作者 X/Twitter 账号
 
