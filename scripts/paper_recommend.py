@@ -4,8 +4,11 @@ from __future__ import annotations
 paper_recommend.py — 论文推荐工具
 
 从 X 推文 / GitHub 仓库 / ArXiv ID / 论文标题 出发，提取论文信息，
-通过 Semantic Scholar API 查找相关论文（cited-by、references、同作者），
+通过 OpenAlex (主) / Semantic Scholar (备) 查找相关论文（cited-by、references、同作者），
 反向查找作者 X/Twitter 账号。
+
+OpenAlex: 完全免费、无需 API Key、无限流。250M+ 论文。
+Semantic Scholar: 可选 fallback（需 API Key 避免 429）。
 
 Usage:
   python3 paper_recommend.py --tweet https://x.com/user/status/123456
@@ -17,8 +20,6 @@ Usage:
 
 Zero pip dependencies — stdlib only (urllib/json/re + subprocess).
 """
-
-from __future__ import annotations
 
 import argparse
 import json
@@ -35,13 +36,16 @@ import xml.etree.ElementTree as ET
 
 # ─── Config ───────────────────────────────────────────────────────────────────
 
+OPENALEX_API = "https://api.openalex.org"
 SEMANTIC_SCHOLAR_API = "https://api.semanticscholar.org/graph/v1"
 ARXIV_API = "https://export.arxiv.org/api/query?id_list={arxiv_id}"
-REQUEST_DELAY = 1.0  # Semantic Scholar free tier: be polite
+REQUEST_DELAY = 0.2  # OpenAlex is generous; S2 needs 1s but we only fallback
 
 # Optional API keys (set via environment variables for higher rate limits)
 S2_API_KEY = os.environ.get("S2_API_KEY") or os.environ.get("SEMANTIC_SCHOLAR_API_KEY")
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
+# OpenAlex "polite pool": set email for faster responses (optional)
+OPENALEX_EMAIL = os.environ.get("OPENALEX_EMAIL", "")
 
 ARXIV_ID_RE = re.compile(r'(\d{4}\.\d{4,5}(?:v\d+)?)')
 ARXIV_URL_RE = re.compile(r'arxiv\.org/(?:abs|pdf|html)/([^\s?#]+?)(?:\.pdf)?(?:[?#]|$)')
@@ -309,7 +313,29 @@ def extract_from_github(github_url: str) -> dict | None:
 
 
 def search_paper_by_title(title: str) -> dict | None:
-    """Search Semantic Scholar by title to find the paper."""
+    """Search for a paper by title. OpenAlex first, S2 fallback."""
+    # Try OpenAlex first (no rate limit)
+    print(f"[INFO] Searching OpenAlex for: {title[:60]}...", file=sys.stderr)
+    oa_paper = oa_find_paper(title=title)
+    if oa_paper:
+        oa_work = _oa_work_to_paper(oa_paper)
+        arxiv_id = (oa_work.get("externalIds") or {}).get("ArXiv")
+        if arxiv_id:
+            info = fetch_arxiv_metadata(arxiv_id)
+            if info:
+                return info
+        # Return OpenAlex data
+        authors = [a.get("name", "") for a in oa_work.get("authors", [])]
+        return {
+            "arxiv_id": arxiv_id,
+            "title": oa_work.get("title", title),
+            "authors": authors,
+            "abstract": oa_work.get("abstract", ""),
+            "github_urls": [],
+            "s2_paper_id": None,
+        }
+
+    # Fallback to S2
     print(f"[INFO] Searching S2 for: {title[:60]}...", file=sys.stderr)
     query = urllib.parse.quote(title[:200])
     data = _s2_get("/paper/search", f"query={query}&limit=1&fields=externalIds,title,authors")
@@ -320,7 +346,6 @@ def search_paper_by_title(title: str) -> dict | None:
     arxiv_id = ext.get("ArXiv")
     if arxiv_id:
         return fetch_arxiv_metadata(arxiv_id)
-    # Return what we have from S2
     authors = [a.get("name", "") for a in paper.get("authors", [])]
     return {
         "arxiv_id": arxiv_id,
@@ -332,7 +357,184 @@ def search_paper_by_title(title: str) -> dict | None:
     }
 
 
-# ─── Semantic Scholar recommendation engine ──────────────────────────────────
+# ─── OpenAlex engine (primary — free, no key, no rate limit) ─────────────────
+
+def _oa_get(url: str) -> dict | None:
+    """OpenAlex API GET with polite pool email."""
+    sep = "&" if "?" in url else "?"
+    if OPENALEX_EMAIL:
+        url += f"{sep}mailto={urllib.parse.quote(OPENALEX_EMAIL)}"
+    time.sleep(REQUEST_DELAY)
+    result = _get(url, timeout=20)
+    return result if isinstance(result, dict) else None
+
+
+def oa_find_paper(arxiv_id: str = None, title: str = None, doi: str = None) -> dict | None:
+    """Find a paper on OpenAlex by ArXiv ID, DOI, or title search."""
+    if arxiv_id:
+        clean = re.sub(r'v\d+$', '', arxiv_id)
+        # Best method: use OpenAlex external ID lookup via DOI
+        # ArXiv papers often have DOI: 10.48550/arXiv.XXXX.XXXXX
+        doi_url = f"https://doi.org/10.48550/arXiv.{clean}"
+        data = _oa_get(f"{OPENALEX_API}/works/{urllib.parse.quote(doi_url, safe='')}")
+        if data and data.get("id"):
+            return data
+    if doi:
+        data = _oa_get(f"{OPENALEX_API}/works/doi:{urllib.parse.quote(doi)}")
+        if data and data.get("id"):
+            return data
+    if title:
+        q = urllib.parse.quote(title[:200])
+        data = _oa_get(f"{OPENALEX_API}/works?filter=title.search:{q}&per_page=1&sort=cited_by_count:desc")
+        if data and data.get("results"):
+            return data["results"][0]
+    if arxiv_id:
+        # Fallback: search by arxiv ID in title/abstract
+        data = _oa_get(f"{OPENALEX_API}/works?search={urllib.parse.quote(arxiv_id)}&per_page=1")
+        if data and data.get("results"):
+            return data["results"][0]
+    return None
+
+
+def _oa_work_to_paper(w: dict, source: str = "") -> dict:
+    """Convert OpenAlex work to our standard paper dict format."""
+    authors_raw = w.get("authorships", [])
+    authors = [{"name": a["author"]["display_name"], "authorId": (a["author"].get("id") or "").replace("https://openalex.org/", "")}
+               for a in authors_raw if a.get("author", {}).get("display_name")]
+
+    ext_ids = {}
+    ids = w.get("ids", {})
+    if ids.get("doi"):
+        ext_ids["DOI"] = ids["doi"].replace("https://doi.org/", "")
+    # Check for ArXiv ID in locations
+    arxiv_id = None
+    for loc in w.get("locations", []):
+        lid = (loc.get("landing_page_url") or "")
+        m = ARXIV_URL_RE.search(lid)
+        if m:
+            arxiv_id = re.sub(r'v\d+$', '', m.group(1))
+            ext_ids["ArXiv"] = arxiv_id
+            break
+
+    abstract = ""
+    if w.get("abstract_inverted_index"):
+        # Reconstruct abstract from inverted index
+        inv = w["abstract_inverted_index"]
+        if isinstance(inv, dict):
+            word_pos = []
+            for word, positions in inv.items():
+                for pos in positions:
+                    word_pos.append((pos, word))
+            word_pos.sort()
+            abstract = " ".join(wp[1] for wp in word_pos)
+
+    return {
+        "paperId": w.get("id", "").replace("https://openalex.org/", ""),
+        "externalIds": ext_ids,
+        "title": w.get("title") or w.get("display_name", ""),
+        "authors": authors,
+        "year": w.get("publication_year"),
+        "citationCount": w.get("cited_by_count", 0),
+        "abstract": abstract,
+        "url": w.get("doi") or (f"https://arxiv.org/abs/{arxiv_id}" if arxiv_id else ""),
+        "_source": source,
+        "_oa_id": w.get("id", "").replace("https://openalex.org/", ""),
+    }
+
+
+def oa_get_citations(oa_id: str, limit: int = 30) -> list[dict]:
+    """Get papers that cite this paper (OpenAlex)."""
+    data = _oa_get(f"{OPENALEX_API}/works?filter=cites:{oa_id}&sort=cited_by_count:desc&per_page={limit}")
+    if not data or not data.get("results"):
+        return []
+    return [_oa_work_to_paper(w, "cited_by") for w in data["results"]]
+
+
+def oa_get_references(oa_id: str, limit: int = 30) -> list[dict]:
+    """Get papers referenced by this paper (OpenAlex)."""
+    data = _oa_get(f"{OPENALEX_API}/works/{oa_id}?select=referenced_works")
+    if not data or not data.get("referenced_works"):
+        return []
+    ref_ids = data["referenced_works"][:limit]
+    if not ref_ids:
+        return []
+    # Batch fetch reference details
+    ids_str = "|".join(r.replace("https://openalex.org/", "") for r in ref_ids)
+    batch = _oa_get(f"{OPENALEX_API}/works?filter=openalex:{ids_str}&per_page={limit}&sort=cited_by_count:desc")
+    if not batch or not batch.get("results"):
+        return []
+    return [_oa_work_to_paper(w, "reference") for w in batch["results"]]
+
+
+def oa_get_related(oa_id: str, limit: int = 20) -> list[dict]:
+    """Get related papers (OpenAlex built-in recommendation)."""
+    data = _oa_get(f"{OPENALEX_API}/works/{oa_id}?select=related_works")
+    if not data or not data.get("related_works"):
+        return []
+    rel_ids = data["related_works"][:limit]
+    if not rel_ids:
+        return []
+    ids_str = "|".join(r.replace("https://openalex.org/", "") for r in rel_ids)
+    batch = _oa_get(f"{OPENALEX_API}/works?filter=openalex:{ids_str}&per_page={limit}&sort=cited_by_count:desc")
+    if not batch or not batch.get("results"):
+        return []
+    return [_oa_work_to_paper(w, "related") for w in batch["results"]]
+
+
+def oa_get_author_papers(author_id: str, limit: int = 10) -> list[dict]:
+    """Get recent papers by an author (OpenAlex)."""
+    data = _oa_get(f"{OPENALEX_API}/works?filter=authorships.author.id:{author_id}&sort=cited_by_count:desc&per_page={limit}")
+    if not data or not data.get("results"):
+        return []
+    return [_oa_work_to_paper(w, "same_author") for w in data["results"]]
+
+
+def find_related_openalex(paper_info: dict, top_n: int = 5) -> list[dict]:
+    """Find related papers using OpenAlex (primary engine)."""
+    arxiv_id = paper_info.get("arxiv_id")
+    title = paper_info.get("title", "")
+
+    print("[INFO] Looking up paper on OpenAlex...", file=sys.stderr)
+    oa_paper = oa_find_paper(arxiv_id=arxiv_id, title=title)
+    if not oa_paper:
+        print("[WARN] Paper not found on OpenAlex", file=sys.stderr)
+        return []
+
+    oa_id = oa_paper.get("id", "").replace("https://openalex.org/", "")
+    oa_title = oa_paper.get("title") or oa_paper.get("display_name", "")
+    oa_citations = oa_paper.get("cited_by_count", 0)
+    print(f"[INFO] OpenAlex: {oa_title[:60]} (citations: {oa_citations})", file=sys.stderr)
+
+    all_candidates = []
+
+    # 1. Citing papers
+    print("[INFO] Fetching citations (OpenAlex)...", file=sys.stderr)
+    all_candidates.extend(oa_get_citations(oa_id, limit=30))
+
+    # 2. References
+    print("[INFO] Fetching references (OpenAlex)...", file=sys.stderr)
+    all_candidates.extend(oa_get_references(oa_id, limit=30))
+
+    # 3. Related works (OpenAlex built-in)
+    print("[INFO] Fetching related works (OpenAlex)...", file=sys.stderr)
+    all_candidates.extend(oa_get_related(oa_id, limit=20))
+
+    # 4. Same-author papers (first 2 authors)
+    authorships = oa_paper.get("authorships", [])
+    for auth in authorships[:2]:
+        author_obj = auth.get("author", {})
+        author_oa_id = author_obj.get("id", "").replace("https://openalex.org/", "")
+        author_name = author_obj.get("display_name", "unknown")
+        if author_oa_id:
+            print(f"[INFO] Fetching papers by {author_name} (OpenAlex)...", file=sys.stderr)
+            all_candidates.extend(oa_get_author_papers(author_oa_id, limit=10))
+
+    # Rank and deduplicate
+    ranked = rank_and_dedupe(all_candidates, oa_id)
+    return ranked[:top_n]
+
+
+# ─── Semantic Scholar engine (fallback) ──────────────────────────────────────
 
 def get_s2_paper(arxiv_id: str = None, title: str = None, s2_id: str = None) -> dict | None:
     """Get Semantic Scholar paper data."""
@@ -398,14 +600,25 @@ def rank_and_dedupe(papers: list[dict], source_paper_id: str = None) -> list[dic
 
 def find_related_papers(paper_info: dict, top_n: int = 5) -> list[dict]:
     """
-    Find top-N related papers using Semantic Scholar.
-    Strategy: citations + references + same-author papers, then rank.
+    Find top-N related papers.
+    Strategy: OpenAlex first (free, no key), Semantic Scholar as fallback.
     """
+    # Try OpenAlex first (primary — no API key needed)
+    results = find_related_openalex(paper_info, top_n=top_n)
+    if results:
+        return results
+
+    # Fallback to Semantic Scholar
+    print("[INFO] OpenAlex returned no results, trying Semantic Scholar...", file=sys.stderr)
+    return _find_related_s2(paper_info, top_n=top_n)
+
+
+def _find_related_s2(paper_info: dict, top_n: int = 5) -> list[dict]:
+    """Fallback: find related papers via Semantic Scholar."""
     arxiv_id = paper_info.get("arxiv_id")
     s2_id = paper_info.get("s2_paper_id")
     title = paper_info.get("title", "")
 
-    # Get the source paper on S2
     print("[INFO] Looking up paper on Semantic Scholar...", file=sys.stderr)
     s2_paper = get_s2_paper(arxiv_id=arxiv_id, title=title, s2_id=s2_id)
     if not s2_paper:
@@ -418,33 +631,29 @@ def find_related_papers(paper_info: dict, top_n: int = 5) -> list[dict]:
 
     all_candidates = []
 
-    # 1. Citing papers (who cited this?)
-    print("[INFO] Fetching citations...", file=sys.stderr)
+    print("[INFO] Fetching citations (S2)...", file=sys.stderr)
     citations = get_citations(paper_id, limit=30)
     for p in citations:
         p["_source"] = "cited_by"
     all_candidates.extend(citations)
 
-    # 2. References (what does this paper cite?)
-    print("[INFO] Fetching references...", file=sys.stderr)
+    print("[INFO] Fetching references (S2)...", file=sys.stderr)
     references = get_references(paper_id, limit=30)
     for p in references:
         p["_source"] = "reference"
     all_candidates.extend(references)
 
-    # 3. Same-author papers (first 2 authors)
     s2_authors = s2_paper.get("authors", [])
     for author in s2_authors[:2]:
         author_id = author.get("authorId")
         if not author_id:
             continue
-        print(f"[INFO] Fetching papers by {author.get('name', 'unknown')}...", file=sys.stderr)
+        print(f"[INFO] Fetching papers by {author.get('name', 'unknown')} (S2)...", file=sys.stderr)
         author_papers = get_author_papers(author_id, limit=10)
         for p in author_papers:
             p["_source"] = "same_author"
         all_candidates.extend(author_papers)
 
-    # Rank and deduplicate
     ranked = rank_and_dedupe(all_candidates, paper_id)
     return ranked[:top_n]
 
@@ -594,7 +803,7 @@ def format_paper_zh(p: dict, idx: int, twitter_map: dict) -> str:
     title = p.get("title", "Unknown")
     year = p.get("year") or "?"
     citations = p.get("citationCount", 0) or 0
-    source_label = {"cited_by": "引用", "reference": "参考文献", "same_author": "同作者"}.get(
+    source_label = {"cited_by": "引用", "reference": "参考文献", "same_author": "同作者", "related": "相关"}.get(
         p.get("_source", ""), p.get("_source", "")
     )
     url = p.get("url", "") or ""
