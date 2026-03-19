@@ -642,9 +642,10 @@ class ArxivAuthorFinder:
                         if self.verbose:
                             print(f"  [GitHub/search] {author} → @{handle}", file=sys.stderr)
 
-        # Layer 1b: GitHub user search for still-missing authors (limit to 3 to avoid 429)
+        # Layer 1b: GitHub user search for still-missing authors
         missing = [a for a, v in results.items() if v["handle"] is None]
-        for author in missing[:3]:
+        for author in missing:
+            time.sleep(5)  # 5s delay bypasses GitHub search 429
             handle = search_github_users_for_author(author, self.token)
             if handle:
                 results[author] = {"handle": handle, "source": "github_user_search", "confidence": "medium"}
