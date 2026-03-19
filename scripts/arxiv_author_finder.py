@@ -38,12 +38,7 @@ from datetime import datetime, timezone
 # ─── Config ───────────────────────────────────────────────────────────────────
 
 ARXIV_API = "https://export.arxiv.org/api/query?id_list={arxiv_id}"
-GITHUB_USER_API  = "https://api.github.com/users/{username}"
-GITHUB_ORG_API   = "https://api.github.com/orgs/{org}"
-GITHUB_REPO_API  = "https://api.github.com/repos/{owner}/{repo}"
-GITHUB_CONTRIB_API = "https://api.github.com/repos/{owner}/{repo}/contributors?per_page=5"
-GITHUB_ORG_MEMBERS_API = "https://api.github.com/orgs/{org}/members?per_page=10"
-GITHUB_SEARCH_USERS_API = "https://api.github.com/search/users?q={query}&per_page=5"
+# GitHub HTML scraping (zero API token needed)
 
 TWITTER_URL_RE = re.compile(
     r'(?:https?://)?(?:www\.)?(?:twitter\.com|x\.com)/([A-Za-z0-9_]{1,50})(?:[/?#]|$)'
@@ -78,13 +73,52 @@ def _get(url: str, headers: dict | None = None, timeout: int = 15) -> dict | str
         return None
 
 
-def github_get(path_url: str, token: str | None) -> dict | list | None:
-    headers = {}
-    if token:
-        headers["Authorization"] = f"Bearer {token}"
-    headers["Accept"] = "application/vnd.github+json"
-    time.sleep(REQUEST_DELAY)
-    return _get(path_url, headers=headers)
+def _scrape_github_profile(username: str) -> dict | None:
+    """Scrape GitHub profile HTML for name + twitter handle. No API needed."""
+    html = _get(f"https://github.com/{username}", timeout=10)
+    if not isinstance(html, str):
+        return None
+    result = {"login": username, "name": "", "twitter": None, "bio": ""}
+    # Display name
+    name_m = re.search(r'itemprop="name">([^<]+)<', html)
+    if name_m:
+        result["name"] = name_m.group(1).strip()
+    # Twitter/X link
+    tw_m = re.search(r'href="https://(?:twitter\.com|x\.com)/([\w.]+)"', html)
+    if tw_m and tw_m.group(1).lower() not in ("home", "share", "intent", "i", "github"):
+        result["twitter"] = tw_m.group(1)
+    # Bio
+    bio_m = re.search(r'<div[^>]*data-bio-text[^>]*>([^<]*)</div>', html)
+    if bio_m:
+        result["bio"] = bio_m.group(1).strip()
+    return result
+
+
+def _scrape_repo_contributors(owner: str, repo: str) -> list[str]:
+    """Get contributor usernames from atom feed (no API needed)."""
+    atom = _get(f"https://github.com/{owner}/{repo}/commits/HEAD.atom", timeout=10)
+    if not isinstance(atom, str):
+        atom = _get(f"https://github.com/{owner}/{repo}/commits/main.atom", timeout=10)
+    if not isinstance(atom, str):
+        return []
+    names = re.findall(r'<name>([^<]+)</name>', atom)
+    seen = set()
+    unique = []
+    for n in names:
+        if n not in seen:
+            seen.add(n)
+            unique.append(n)
+    return unique[:10]
+
+
+def _is_org(owner: str) -> bool:
+    """Check if a GitHub owner is an org by scraping repo page."""
+    html = _get(f"https://github.com/{owner}", timeout=10)
+    if not isinstance(html, str):
+        return False
+    # Orgs have "Organizations" or org-specific markers
+    return 'data-view-component="true" class="avatar-group-item"' in html or \
+           'itemtype="http://schema.org/Organization"' in html
 
 
 # ─── Layer 1: arxiv API ───────────────────────────────────────────────────────
@@ -165,40 +199,32 @@ def fetch_arxiv_paper(arxiv_id: str) -> dict:
     }
 
 
-def search_github_for_paper(title: str, token: str | None) -> list[str]:
-    """Try to find a GitHub repo URL by searching for the paper title."""
-    query = urllib.parse.quote(f'"{title}" in:readme')
-    url = f"https://api.github.com/search/repositories?q={query}&sort=stars&per_page=3"
-    result = github_get(url, token)
-    if not result or not isinstance(result, dict):
+def search_github_for_paper(title: str, token: str | None = None) -> list[str]:
+    """Try to find a GitHub repo URL by searching for the paper title (HTML scraping)."""
+    query = urllib.parse.quote(f'"{title[:80]}"')
+    url = f"https://github.com/search?q={query}&type=repositories"
+    html = _get(url, timeout=15)
+    if not isinstance(html, str):
         return []
-    items = result.get("items", [])
-    return [item["html_url"] for item in items if item.get("html_url")]
+    # Extract repo URLs from search results
+    repos = re.findall(r'href="(/[^/]+/[^/"]+)"[^>]*data-testid="results-list"', html)
+    if not repos:
+        # Fallback: look for repo links in search page
+        repos = re.findall(r'href="/([^/]+/[^/"]+)" data-hydro-click', html)
+    return [f"https://github.com{r}" if r.startswith('/') else f"https://github.com/{r}" for r in repos[:3]]
 
 
 # ─── Layer 2: GitHub API ──────────────────────────────────────────────────────
 
-def extract_twitter_from_github_user(user_data: dict) -> str | None:
-    """Extract twitter handle from GitHub user/org API response."""
-    # Direct field
-    handle = user_data.get("twitter_username")
-    if handle and isinstance(handle, str) and handle.strip():
-        return handle.strip().lstrip("@")
-
-    # blog field — may contain twitter.com URL
-    blog = user_data.get("blog", "") or ""
-    m = TWITTER_URL_RE.search(blog)
-    if m:
-        handle = m.group(1)
-        if handle.lower() not in ("home", "share", "intent", "i"):
-            return handle
-
-    return None
+def extract_twitter_from_profile(profile: dict) -> str | None:
+    """Extract twitter handle from scraped profile dict."""
+    return profile.get("twitter") if profile else None
 
 
-def find_twitter_via_repo(repo_url: str, authors: list[str], token: str | None) -> dict[str, str]:
+def find_twitter_via_repo(repo_url: str, authors: list[str], token: str | None = None) -> dict[str, str]:
     """
     Given a GitHub repo URL, find twitter handles for authors.
+    Uses HTML scraping — no API token needed.
     Returns {author_name: twitter_handle}
     """
     m = GITHUB_REPO_URL_RE.match(repo_url.rstrip("/"))
@@ -207,64 +233,56 @@ def find_twitter_via_repo(repo_url: str, authors: list[str], token: str | None) 
     owner, repo = m.group(1), m.group(2)
     results: dict[str, str] = {}
 
-    # 1. Get repo info (owner might be org or user)
-    repo_data = github_get(GITHUB_REPO_API.format(owner=owner, repo=repo), token)
-    owner_type = "unknown"
-    if isinstance(repo_data, dict):
-        owner_type = (repo_data.get("owner") or {}).get("type", "User")
+    # 1. Check repo owner's profile
+    owner_profile = _scrape_github_profile(owner)
+    if owner_profile:
+        handle = extract_twitter_from_profile(owner_profile)
+        if handle:
+            matched = _match_github_to_author(owner_profile, authors)
+            if matched:
+                results[matched] = handle
 
-    # 2. If org, get org twitter + members
-    if owner_type == "Organization":
-        org_data = github_get(GITHUB_ORG_API.format(org=owner), token)
-        if isinstance(org_data, dict):
-            handle = extract_twitter_from_github_user(org_data)
-            if handle:
-                # Attribute to first author as "org account"
-                if authors:
-                    results[authors[0]] = results.get(authors[0]) or handle
+    # 2. If owner is an org, try to match org twitter by handle → author name
+    if _is_org(owner):
+        org_handle = owner_profile.get("twitter") if owner_profile else None
+        if org_handle:
+            # Try matching handle to an author name (e.g. @LingYang_PU → Ling Yang)
+            matched = _match_handle_to_author(org_handle, authors)
+            if matched:
+                results.setdefault(matched, org_handle)
 
-        members = github_get(GITHUB_ORG_MEMBERS_API.format(org=owner), token)
-        if isinstance(members, list):
-            for member in members[:10]:  # Limit to avoid API quota exhaustion
-                uname = member.get("login", "")
-                if not uname:
-                    continue
-                udata = github_get(GITHUB_USER_API.format(username=uname), token)
-                if not isinstance(udata, dict):
-                    continue
-                handle = extract_twitter_from_github_user(udata)
-                if handle:
-                    # Match member name to author
-                    matched = _match_github_to_author(udata, authors)
-                    if matched:
-                        results[matched] = handle
-    else:
-        # 3. Get owner user directly
-        udata = github_get(GITHUB_USER_API.format(username=owner), token)
-        if isinstance(udata, dict):
-            handle = extract_twitter_from_github_user(udata)
-            if handle:
-                matched = _match_github_to_author(udata, authors)
-                if matched:
-                    results[matched] = handle
-
-    # 4. Get contributors
-    contribs = github_get(GITHUB_CONTRIB_API.format(owner=owner, repo=repo), token)
-    if isinstance(contribs, list):
-        for c in contribs:
-            uname = c.get("login", "")
-            if not uname:
-                continue
-            udata = github_get(GITHUB_USER_API.format(username=uname), token)
-            if not isinstance(udata, dict):
-                continue
-            handle = extract_twitter_from_github_user(udata)
-            if handle:
-                matched = _match_github_to_author(udata, authors)
-                if matched and matched not in results:
-                    results[matched] = handle
+    # 3. Check contributors from atom feed
+    contributors = _scrape_repo_contributors(owner, repo)
+    for login in contributors[:8]:
+        if login == owner:
+            continue  # Already checked
+        time.sleep(REQUEST_DELAY)
+        profile = _scrape_github_profile(login)
+        if not profile:
+            continue
+        handle = extract_twitter_from_profile(profile)
+        if handle:
+            matched = _match_github_to_author(profile, authors)
+            if matched and matched not in results:
+                results[matched] = handle
 
     return results
+
+
+def _match_handle_to_author(handle: str, authors: list[str]) -> str | None:
+    """Try to match a Twitter handle to one of the paper authors by name parts."""
+    h = handle.lower().replace("_", "").replace("-", "")
+    for author in authors:
+        parts = _normalize_name(author).split()
+        if len(parts) >= 2:
+            # Check if handle contains both first and last name parts
+            if all(p in h for p in parts):
+                return author
+            # Check lastname + firstname initial
+            last = parts[-1]
+            if len(last) >= 3 and last in h:
+                return author
+    return None
 
 
 def _normalize_name(name: str) -> str:
@@ -272,15 +290,15 @@ def _normalize_name(name: str) -> str:
     return re.sub(r'[^a-z ]', '', name.lower()).strip()
 
 
-def _match_github_to_author(udata: dict, authors: list[str]) -> str | None:
+def _match_github_to_author(profile: dict, authors: list[str]) -> str | None:
     """
     Try to match a GitHub user to one of the paper authors.
-    Checks: name field, login, bio against author names.
+    Accepts both API response dicts and scraped profile dicts.
     Returns matched author name or None.
     """
-    gh_name = _normalize_name(udata.get("name") or "")
-    gh_login = _normalize_name(udata.get("login") or "")
-    gh_bio = (udata.get("bio") or "").lower()
+    gh_name = _normalize_name(profile.get("name") or "")
+    gh_login = _normalize_name(profile.get("login") or "")
+    gh_bio = (profile.get("bio") or "").lower()
 
     best_match = None
     best_score = 0
@@ -320,36 +338,40 @@ def _match_github_to_author(udata: dict, authors: list[str]) -> str | None:
     return best_match if best_score >= 4 else None
 
 
-def search_github_users_for_author(author_name: str, token: str | None) -> str | None:
+def search_github_users_for_author(author_name: str, token: str | None = None) -> str | None:
     """
-    Use GitHub user search to try to find an author's account.
+    Use GitHub user search (HTML scraping) to find an author's Twitter.
     Returns twitter handle or None.
     """
     parts = author_name.strip().split()
     if len(parts) < 2:
         return None
 
-    # Search by full name
-    query = urllib.parse.quote(f"{author_name} type:user")
-    url = GITHUB_SEARCH_USERS_API.format(query=query)
-    result = github_get(url, token)
-    if not isinstance(result, dict):
+    query = urllib.parse.quote(f"{author_name}")
+    url = f"https://github.com/search?q={query}&type=users"
+    html = _get(url, timeout=15)
+    if not isinstance(html, str):
         return None
 
-    items = result.get("items", [])
-    for item in items[:3]:
-        uname = item.get("login", "")
-        if not uname:
+    # Extract usernames from search results
+    logins = re.findall(r'href="/([^/"]+)" data-hydro-click', html)
+    if not logins:
+        logins = re.findall(r'href="/([a-zA-Z0-9_-]+)"[^>]*class="[^"]*Link[^"]*"', html)
+
+    seen = set()
+    for login in logins[:5]:
+        if login in seen or login in ("search", "features", "pricing", "login", "signup", "orgs", "topics"):
             continue
-        udata = github_get(GITHUB_USER_API.format(username=uname), token)
-        if not isinstance(udata, dict):
+        seen.add(login)
+        time.sleep(0.5)  # Longer delay for user search to avoid 429
+        profile = _scrape_github_profile(login)
+        if not profile:
             continue
-        gh_name = _normalize_name(udata.get("name") or "")
+        gh_name = _normalize_name(profile.get("name") or "")
         norm_author = _normalize_name(author_name)
         author_parts = norm_author.split()
-        # Only trust if name matches well
         if len(author_parts) >= 2 and all(p in gh_name for p in author_parts):
-            handle = extract_twitter_from_github_user(udata)
+            handle = extract_twitter_from_profile(profile)
             if handle:
                 return handle
 
@@ -500,7 +522,7 @@ class ArxivAuthorFinder:
         skip_search: bool = False,
         verbose: bool = False,
     ):
-        self.token = github_token or os.environ.get("GITHUB_TOKEN")
+        self.token = github_token or os.environ.get("GITHUB_TOKEN")  # kept for compat, not used by scraping
         self.scholars: dict[str, str] = {}
         if scholars_db and os.path.exists(scholars_db):
             self.scholars = load_scholars_dataset(scholars_db)
@@ -556,9 +578,9 @@ class ArxivAuthorFinder:
                         if self.verbose:
                             print(f"  [GitHub/search] {author} → @{handle}", file=sys.stderr)
 
-        # Layer 1b: GitHub user search for still-missing authors
+        # Layer 1b: GitHub user search for still-missing authors (limit to 3 to avoid 429)
         missing = [a for a, v in results.items() if v["handle"] is None]
-        for author in missing:
+        for author in missing[:3]:
             handle = search_github_users_for_author(author, self.token)
             if handle:
                 results[author] = {"handle": handle, "source": "github_user_search", "confidence": "medium"}
