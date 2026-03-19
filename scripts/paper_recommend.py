@@ -244,26 +244,33 @@ def extract_from_github(github_url: str) -> dict | None:
                     return info
             break  # README found (even without arxiv link), skip other branches
 
-    # Check repo description via GitHub API
-    api_url = f"https://api.github.com/repos/{owner}/{repo}"
-    headers = {"Accept": "application/vnd.github+json"}
-    gh_token = os.environ.get("GITHUB_TOKEN")
-    if gh_token:
-        headers["Authorization"] = f"Bearer {gh_token}"
-    repo_data = _get(api_url, headers=headers, timeout=15)
-    if isinstance(repo_data, dict):
-        desc = repo_data.get("description", "") or ""
-        arxiv_id = parse_arxiv_id(desc)
-        if arxiv_id:
-            info = fetch_arxiv_metadata(arxiv_id)
-            if info:
-                if github_url not in info.get("github_urls", []):
-                    info.setdefault("github_urls", []).append(github_url)
-                return info
+    # Try to extract paper title from README
+    readme_text = None
+    for branch in ["main", "master", "HEAD"]:
+        readme_url = f"https://raw.githubusercontent.com/{owner}/{repo}/{branch}/README.md"
+        readme_text = _get(readme_url, timeout=10)
+        if isinstance(readme_text, str) and len(readme_text) > 20:
+            break
+        readme_text = None
 
-        # Use repo name/description as paper title
-        name = repo_data.get("name", repo).replace("-", " ").replace("_", " ")
-        title = desc if desc and len(desc) > 15 else name
+    titles_to_try = []
+    if isinstance(readme_text, str):
+        # Extract title from first markdown heading: "# MSA: Memory Sparse Attention"
+        title_m = re.search(r'^#\s+(.+)', readme_text, re.MULTILINE)
+        if title_m:
+            raw_title = re.sub(r'[\*\[\]`]', '', title_m.group(1)).strip()
+            # If title has "ABBR: Full Name" pattern, try the full name part first
+            if ':' in raw_title:
+                full_part = raw_title.split(':', 1)[1].strip()
+                if len(full_part) > 10:
+                    titles_to_try.append(full_part)
+            if len(raw_title) > 5:
+                titles_to_try.append(raw_title)
+
+    # Last resort: repo name
+    titles_to_try.append(repo.replace("-", " ").replace("_", " "))
+
+    for title in titles_to_try:
         result = search_paper_by_title(title)
         if result:
             if github_url not in result.get("github_urls", []):
@@ -519,32 +526,42 @@ def _match_github_to_author(udata: dict, author_name: str) -> bool:
     return False
 
 
+def _scrape_github_twitter(username: str) -> str | None:
+    """Scrape Twitter/X handle from a GitHub user's profile page (no API needed)."""
+    html = _get(f"https://github.com/{username}", timeout=10)
+    if not isinstance(html, str):
+        return None
+    # Look for twitter.com or x.com links in profile sidebar
+    m = re.search(r'href="https://(?:twitter\.com|x\.com)/(\w+)"', html)
+    if m and m.group(1).lower() not in ("home", "share", "intent", "i", "github"):
+        return m.group(1)
+    return None
+
+
+def _scrape_repo_contributors(owner: str, repo: str) -> list[str]:
+    """Get contributor usernames from repo's atom feed (no API needed)."""
+    atom = _get(f"https://github.com/{owner}/{repo}/commits/HEAD.atom", timeout=10)
+    if not isinstance(atom, str):
+        # Try main branch
+        atom = _get(f"https://github.com/{owner}/{repo}/commits/main.atom", timeout=10)
+    if not isinstance(atom, str):
+        return []
+    names = re.findall(r'<name>([^<]+)</name>', atom)
+    # Deduplicate while preserving order
+    seen = set()
+    unique = []
+    for n in names:
+        if n not in seen:
+            seen.add(n)
+            unique.append(n)
+    return unique[:10]
+
+
 def find_author_twitter(author_name: str, github_urls: list[str] | None = None) -> str | None:
     """
-    Find an author's Twitter handle via GitHub.
-    Simplified version of arxiv_author_finder.py's logic.
+    Find an author's Twitter handle via GitHub HTML scraping.
+    No API token needed — uses public profile pages and atom feeds.
     """
-    gh_token = os.environ.get("GITHUB_TOKEN")
-    headers = {"Accept": "application/vnd.github+json", "User-Agent": "paper-recommend/1.0"}
-    if gh_token:
-        headers["Authorization"] = f"Bearer {gh_token}"
-
-    def _gh_get(url):
-        time.sleep(0.5)
-        return _get(url, headers=headers, timeout=15)
-
-    def _extract_twitter(udata):
-        if not isinstance(udata, dict):
-            return None
-        handle = udata.get("twitter_username")
-        if handle and isinstance(handle, str) and handle.strip():
-            return handle.strip().lstrip("@")
-        blog = udata.get("blog", "") or ""
-        m = TWITTER_URL_RE.search(blog)
-        if m and m.group(1).lower() not in ("home", "share", "intent", "i"):
-            return m.group(1)
-        return None
-
     # 1. Check GitHub repo contributors
     if github_urls:
         for repo_url in github_urls[:2]:
@@ -553,42 +570,25 @@ def find_author_twitter(author_name: str, github_urls: list[str] | None = None) 
                 continue
             owner, repo = m.group(1), m.group(2)
 
-            # Check repo owner
-            udata = _gh_get(f"https://api.github.com/users/{owner}")
-            if isinstance(udata, dict):
-                if _match_github_to_author(udata, author_name):
-                    handle = _extract_twitter(udata)
-                    if handle:
-                        return handle
+            # Check repo owner's profile
+            if _match_github_to_author({"name": owner, "login": owner}, author_name):
+                handle = _scrape_github_twitter(owner)
+                if handle:
+                    return handle
 
-            # Check top 5 contributors (per_page=5 already set in API)
-            contribs = _gh_get(f"https://api.github.com/repos/{owner}/{repo}/contributors?per_page=5")
-            if isinstance(contribs, list):
-                for c in contribs[:5]:
-                    login = c.get("login", "")
-                    if not login:
-                        continue
-                    udata = _gh_get(f"https://api.github.com/users/{login}")
-                    if isinstance(udata, dict) and _match_github_to_author(udata, author_name):
-                        handle = _extract_twitter(udata)
-                        if handle:
+            # Check contributors from atom feed
+            contributors = _scrape_repo_contributors(owner, repo)
+            for login in contributors[:5]:
+                # Scrape each contributor's profile for twitter
+                handle = _scrape_github_twitter(login)
+                if handle:
+                    # Verify name match by checking profile page
+                    html = _get(f"https://github.com/{login}", timeout=10)
+                    if isinstance(html, str):
+                        # Extract display name from profile
+                        name_m = re.search(r'itemprop="name">([^<]+)<', html)
+                        if name_m and _match_github_to_author({"name": name_m.group(1).strip(), "login": login}, author_name):
                             return handle
-
-    # 2. GitHub user search by name
-    parts = author_name.strip().split()
-    if len(parts) >= 2:
-        query = urllib.parse.quote(f"{author_name} type:user")
-        data = _gh_get(f"https://api.github.com/search/users?q={query}&per_page=3")
-        if isinstance(data, dict):
-            for item in data.get("items", [])[:3]:
-                login = item.get("login", "")
-                if not login:
-                    continue
-                udata = _gh_get(f"https://api.github.com/users/{login}")
-                if isinstance(udata, dict) and _match_github_to_author(udata, author_name):
-                    handle = _extract_twitter(udata)
-                    if handle:
-                        return handle
 
     return None
 
