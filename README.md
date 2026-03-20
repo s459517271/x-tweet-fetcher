@@ -44,6 +44,7 @@ X has no free API. Scraping gets you blocked. Browser automation is fragile.
 | Tweet discovery | ✅ | optional | keyword search results |
 | Google search | — | ✅ | zero API key alternative |
 | Chinese platforms | partial | ✅ | Weibo/Bilibili/CSDN/WeChat |
+| Obsidian export (X → Markdown + local assets) | ✅ | ✅ | Markdown note + `assets/` folder |
 | User profile analysis | — | ✅ + LLM | MBTI, Big Five, topic graph |
 
 > **For AI Agents**: All output is structured JSON. Import as Python modules for direct integration. Exit codes are cron-friendly (`0`=nothing new, `1`=new content).
@@ -118,7 +119,39 @@ python3 scripts/camofox_client.py "OpenClaw AI agent"
 
 # User profile analysis
 python3 scripts/x-profile-analyzer.py --user elonmusk --count 100
+
+# Export X content to Obsidian Markdown
+python3 scripts/to_obsidian.py --url "https://x.com/user/status/123" --output ./output
 ```
+
+### Obsidian export
+
+```bash
+# Best fidelity: export from saved HTML snapshot
+python3 scripts/to_obsidian.py \
+  --html /tmp/article.html \
+  --tweet-url "https://x.com/user/status/123" \
+  --username user \
+  --output ./output
+
+# Fallback: export directly from tweet URL
+python3 scripts/to_obsidian.py \
+  --url "https://x.com/user/status/123" \
+  --output ./output
+```
+
+Output structure:
+
+```text
+output/
+├── Some-Title.md
+└── assets/
+    └── Some-Title/
+        ├── image1.jpg
+        └── image2.png
+```
+
+The exporter preserves source text as faithfully as possible, downloads images locally, and rewrites image references for direct use in Obsidian.
 
 ## ⏰ Cron Integration
 
