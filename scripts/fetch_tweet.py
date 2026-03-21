@@ -445,8 +445,12 @@ def fetch_tweet(url: str, timeout: int = 30) -> Dict[str, Any]:
                     # Build ordered list of (block_index, image_url) for atomic blocks
                     atomic_media = {}
                     for bi, b in enumerate(blocks):
+                        if not isinstance(b, dict):
+                            continue
                         if b.get("type") == "atomic":
                             for r in b.get("entityRanges", []):
+                                if not isinstance(r, dict):
+                                    continue
                                 ek = r.get("key")
                                 if ek is not None:
                                     eks = str(ek)
@@ -456,12 +460,21 @@ def fetch_tweet(url: str, timeout: int = 30) -> Dict[str, Any]:
                     # Reconstruct full_text, inserting images from atomic blocks
                     text_parts = []
                     for bi, b in enumerate(blocks):
+                        if not isinstance(b, dict):
+                            continue
                         btype = b.get("type")
                         btext = b.get("text", "")
                         if btype == "atomic":
                             if bi in atomic_media:
                                 img_url = atomic_media[bi]
-                                text_parts.append(f"![]({img_url})")
+                                if (
+                                    isinstance(img_url, str)
+                                    and img_url.startswith(("https://", "http://"))
+                                    and ")" not in img_url
+                                    and "\n" not in img_url
+                                    and "\r" not in img_url
+                                ):
+                                    text_parts.append(f"![]({img_url})")
                             elif btext:
                                 # Fallback for non-image atomic blocks (e.g. embedded tweets)
                                 text_parts.append(btext)
