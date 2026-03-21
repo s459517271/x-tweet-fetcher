@@ -398,21 +398,87 @@ def fetch_tweet(url: str, timeout: int = 30) -> Dict[str, Any]:
                 }
                 content = article.get("content", {})
                 blocks = content.get("blocks", [])
+                cover = article.get("cover_media", {})
+                media_entities = article.get("media_entities", [])
+
                 if blocks:
-                    full_text = "\n\n".join(
-                        b.get("text", "") for b in blocks if b.get("text", "")
-                    )
+                    # Build media_id -> url index from media_entities + cover
+                    media_id_to_url = {}
+                    if cover:
+                        cover_url = cover.get("media_info", {}).get("original_img_url")
+                        cover_id = cover.get("media_id")
+                        if cover_url and cover_id:
+                            media_id_to_url[str(cover_id)] = cover_url
+                    for me in media_entities:
+                        mid = str(me.get("media_id", ""))
+                        murl = me.get("media_info", {}).get("original_img_url", "")
+                        if mid and murl:
+                            media_id_to_url[mid] = murl
+
+                    # Build entityMap key -> media_url lookup
+                    # content.get("entityMap", {}) returns None if API specifically provides {"entityMap": null}
+                    entity_map = content.get("entityMap") or {}
+                    key_to_url = {}
+                    if isinstance(entity_map, dict):
+                        for e_key, e_val in entity_map.items():
+                            if isinstance(e_val, dict) and e_val.get("type") == "MEDIA":
+                                media_items = e_val.get("data", {}).get("mediaItems", [])
+                                for mi in media_items:
+                                    if isinstance(mi, dict):
+                                        mid = str(mi.get("mediaId", ""))
+                                        if mid in media_id_to_url:
+                                            key_to_url[str(e_key)] = media_id_to_url[mid]
+                    elif isinstance(entity_map, list):
+                        for e in entity_map:
+                            if not isinstance(e, dict):
+                                continue
+                            v = e.get("value", {})
+                            k = e.get("key")
+                            if isinstance(v, dict) and v.get("type") == "MEDIA" and k is not None:
+                                media_items = v.get("data", {}).get("mediaItems", [])
+                                for mi in media_items:
+                                    if isinstance(mi, dict):
+                                        mid = str(mi.get("mediaId", ""))
+                                        if mid in media_id_to_url:
+                                            key_to_url[str(k)] = media_id_to_url[mid]
+
+                    # Build ordered list of (block_index, image_url) for atomic blocks
+                    atomic_media = {}
+                    for bi, b in enumerate(blocks):
+                        if b.get("type") == "atomic":
+                            for r in b.get("entityRanges", []):
+                                ek = r.get("key")
+                                if ek is not None:
+                                    eks = str(ek)
+                                    if eks in key_to_url:
+                                        atomic_media[bi] = key_to_url[eks]
+
+                    # Reconstruct full_text, inserting images from atomic blocks
+                    text_parts = []
+                    for bi, b in enumerate(blocks):
+                        btype = b.get("type")
+                        btext = b.get("text", "")
+                        if btype == "atomic":
+                            if bi in atomic_media:
+                                img_url = atomic_media[bi]
+                                text_parts.append(f"![]({img_url})")
+                            elif btext:
+                                # Fallback for non-image atomic blocks (e.g. embedded tweets)
+                                text_parts.append(btext)
+                        elif btext:
+                            text_parts.append(btext)
+                    full_text = "\n\n".join(text_parts)
                     article_data["full_text"] = full_text
                     article_data["word_count"] = len(full_text.split())
                     article_data["char_count"] = len(full_text)
-                # 提取 article 内的图片
+
+                # article_images still collected the same way for compatibility
                 article_images = []
-                cover = article.get("cover_media", {})
                 if cover:
                     cover_url = cover.get("media_info", {}).get("original_img_url")
                     if cover_url:
                         article_images.append({"type": "cover", "url": cover_url})
-                for entity in article.get("media_entities", []):
+                for entity in media_entities:
                     img_url = entity.get("media_info", {}).get("original_img_url")
                     if img_url:
                         article_images.append({"type": "image", "url": img_url})
