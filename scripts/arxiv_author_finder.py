@@ -7,7 +7,7 @@ Pipeline（4层级联）：
   Layer 1: arxiv API → 提取作者名 + GitHub URL
   Layer 2: GitHub HTML scraping → twitter_username (zero API token)
   Layer 3: Scholars on Twitter 本地数据集（需预下载）
-  Layer 4: 搜索引擎兜底（SearxNG → Brave → DuckDuckGo → Camofox）
+  Layer 4: 搜索引擎兜底（SearxNG → Brave → DuckDuckGo → Nitter）
 
 Usage:
   python3 arxiv_author_finder.py --arxiv "https://arxiv.org/abs/2603.10165"
@@ -55,18 +55,6 @@ def search_github_for_paper(title: str) -> list[str]:
         if not repos:
             repos = re.findall(r'href="/([^/]+/[^/"]+)" data-hydro-click', html)
 
-    # Camofox fallback
-    if not repos:
-        try:
-            from camofox_client import check_camofox, camofox_search
-            if check_camofox():
-                results = camofox_search(f'{title[:80]} github.com', num=5, engine="google")
-                for r in results:
-                    m = re.search(r'github\.com/([^/]+/[^/\s?"]+)', r.get("url", ""))
-                    if m:
-                        repos.append(m.group(0))
-        except Exception:
-            pass
 
     return [r if r.startswith('http') else
             f"https://{r}" if 'github.com' in r else

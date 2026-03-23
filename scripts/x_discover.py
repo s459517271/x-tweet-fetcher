@@ -3,7 +3,7 @@
 X Discover - Search and discover valuable tweets by keyword.
 Part of x-tweet-fetcher.
 
-Uses SearxNG (local, zero-cost) → DuckDuckGo → Camofox as fallback chain.
+Uses SearxNG (local, zero-cost) → DuckDuckGo as search chain.
 Supports --fresh flag to only get recent results (past week).
 Supports --verify flag to cross-validate freshness via AI (Gemini/Grok).
 

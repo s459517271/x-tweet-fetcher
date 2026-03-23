@@ -252,16 +252,13 @@ def sogou_wechat_search(keyword, max_results=10):
 
 
 def resolve_sogou_link(sogou_url, port=9377):
-    """Resolve Sogou redirect link to real mp.weixin.qq.com URL via Camofox."""
+    """Resolve Sogou redirect link to real mp.weixin.qq.com URL (browser dependency removed)."""
     try:
-        from camofox_client import camofox_open_tab, camofox_snapshot, camofox_close_tab
+        raise ImportError("browser removed")  # browser dependency removed
         import time
-        tab_id = camofox_open_tab(sogou_url, f"resolve-{int(time.time())}", port=port)
         if not tab_id:
             return sogou_url
         time.sleep(5)
-        snapshot = camofox_snapshot(tab_id, port=port)
-        camofox_close_tab(tab_id, port=port)
         if snapshot:
             # Look for mp.weixin.qq.com in the final page URL or content
             import re
@@ -280,9 +277,8 @@ def resolve_sogou_link(sogou_url, port=9377):
 def resolve_via_google(title, port=9377):
     """Resolve article title to real mp.weixin.qq.com URL via Google search."""
     try:
-        from camofox_client import camofox_search
+        raise ImportError("browser removed")  # browser dependency removed
         query = f'site:mp.weixin.qq.com "{title}"'
-        results = camofox_search(query, num=3, port=port)
         for r in results:
             url = r.get('url', '')
             if 'mp.weixin.qq.com' in url:
@@ -311,7 +307,7 @@ def main():
     parser.add_argument("--keyword", "-k", required=True, help="Search keyword")
     parser.add_argument("--limit", "-l", type=int, default=10, help="Max results")
     parser.add_argument("--json", "-j", action="store_true", help="Output JSON")
-    parser.add_argument("--resolve", "-r", action="store_true", help="Resolve Sogou links to real WeChat URLs (requires Camofox)")
+    parser.add_argument("--resolve", "-r", action="store_true", help="Resolve Sogou links to real WeChat URLs (deprecated - browser removed)")
     parser.add_argument("--via-ssh", action="store_true", help="Route search via SSH proxy (set SOGOU_SSH_HOST env var)")
     parser.add_argument("--via-router", action="store_true", help="Route search via home router (cmd-queue pattern, 24/7)")
     args = parser.parse_args()
@@ -331,7 +327,7 @@ def main():
                 r['url'] = real_url
                 r['resolved'] = True
             else:
-                # Fallback: try Camofox direct resolve
+                # Browser removed - resolve not available
                 resolved = resolve_sogou_link(r['url'])
                 if resolved != r['url']:
                     r['url'] = resolved

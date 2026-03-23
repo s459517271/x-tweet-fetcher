@@ -357,7 +357,7 @@ def _brave_scrape_twitter(query: str) -> list[str]:
 
 def search_web(query: str, max_results: int = 5, fresh: bool = False) -> list[dict]:
     """
-    Search chain: SearxNG → Brave HTML → DuckDuckGo → Camofox.
+    Search chain: SearxNG → Brave HTML → DuckDuckGo → Nitter.
     Returns list of {url, title, snippet} dicts.
     """
     # 1. SearxNG (local instance, zero-cost, best for fresh results)
@@ -392,16 +392,6 @@ def search_web(query: str, max_results: int = 5, fresh: bool = False) -> list[di
         results = DDGS().text(query, max_results=max_results)
         if results:
             return [{"url": r.get("href", ""), "title": r.get("title", ""), "snippet": r.get("body", "")} for r in results]
-    except Exception:
-        pass
-
-    # 4. Camofox browser (fingerprint browser, zero 429)
-    try:
-        from camofox_client import check_camofox, camofox_search
-        if check_camofox():
-            results = camofox_search(query, num=max_results, engine="google")
-            if results:
-                return results[:max_results]
     except Exception:
         pass
 
