@@ -14,7 +14,7 @@ import urllib.request
 import urllib.parse
 import xml.etree.ElementTree as ET
 
-from config import SEARXNG_URL
+from config import SEARXNG_URL, GITHUB_TOKEN, ARXIV_API
 
 # ─── Regex patterns ──────────────────────────────────────────────────────────
 

@@ -1682,6 +1682,47 @@ def _nitter_available() -> bool:
         return False
 
 
+def _fetch_replies_via_nitter(url: str) -> Dict[str, Any]:
+    """Fetch tweet replies via local Nitter (no browser required)."""
+    try:
+        username, tweet_id = parse_tweet_url(url)
+    except ValueError as e:
+        return {"url": url, "error": str(e)}
+
+    try:
+        nitter_client = _get_nitter_client()
+    except ImportError as e:
+        return {"url": url, "error": f"nitter_client not found: {e}", "replies": []}
+
+    detail = nitter_client.fetch_tweet_detail(username, tweet_id)
+    if detail.get("error"):
+        return {"url": url, "error": detail["error"], "replies": []}
+
+    replies = []
+    for r in detail.get("replies_list", []):
+        replies.append({
+            "author": f"@{r.get('username', '')}",
+            "author_name": r.get("display_name", r.get("username", "")),
+            "text": r.get("text", ""),
+            "time_ago": r.get("time", ""),
+            "likes": r.get("likes", 0),
+            "retweets": r.get("retweets", 0),
+            "replies": r.get("replies", 0),
+            "views": r.get("views", 0),
+            "tweet_id": r.get("tweet_id", ""),
+            "media": r.get("media_urls", []) or [],
+        })
+
+    return {
+        "url": url,
+        "username": username,
+        "tweet_id": tweet_id,
+        "replies": replies,
+        "count": len(replies),
+        "backend": "nitter",
+    }
+
+
 def fetch_user_timeline_nitter(username: str, limit: int = 20) -> Dict[str, Any]:
     """Fetch user timeline via local Nitter (no browser required)."""
     try:
@@ -1748,8 +1789,7 @@ def _search_mentions(username: str, limit: int = 10, port: int = 9377) -> List[D
             _sys.path.insert(0, scripts_dir)
         from camofox_client import camofox_search
     except ImportError:
-        # fallback：直接用内置的 camofox_search（如果在同目录运行）
-        from scripts.camofox_client import camofox_search
+        raise ImportError("camofox_client not found — ensure scripts/ is in sys.path")
 
     clean = username.lstrip("@")
     queries = [
@@ -2000,6 +2040,9 @@ def main():
 
     # ── Mode 2: X Article ────────────────────────────────────────────────
     if args.article:
+        if args.backend == "nitter":
+            print("[warning] --article requires a browser backend (Camofox/Playwright). "
+                  "Nitter cannot fetch X Articles. Falling back to browser.", file=sys.stderr)
         result = fetch_article(
             args.article,
             camofox_port=args.port,
@@ -2030,11 +2073,14 @@ def main():
 
     # ── Mode 3: Tweet replies ─────────────────────────────────────────────
     if args.url and args.replies:
-        result = fetch_tweet_replies(
-            args.url,
-            camofox_port=args.port,
-            nitter_instance=args.nitter,
-        )
+        if use_nitter:
+            result = _fetch_replies_via_nitter(args.url)
+        else:
+            result = fetch_tweet_replies(
+                args.url,
+                camofox_port=args.port,
+                nitter_instance=args.nitter,
+            )
 
         if args.text_only:
             if result.get("error"):
@@ -2128,11 +2174,6 @@ def main():
 
 def supplement_views(tweets: List[Dict], max补充: int = 50) -> List[Dict]:
     """用 FxTwitter API 补充浏览量数据"""
-    try:
-        import requests
-    except ImportError:
-        print("[views] 'requests' not installed — skipping view supplementation", file=sys.stderr)
-        return tweets
     for i, tw in enumerate(tweets[:max补充]):
         if tw.get("views", 0) != 0:
             continue  # 已有浏览量，跳过
@@ -2149,19 +2190,21 @@ def supplement_views(tweets: List[Dict], max补充: int = 50) -> List[Dict]:
             print(f"[views] 跳过无 tweet_id: @{username} - {tw.get('text', '')[:50]}...", file=sys.stderr)
             continue
         try:
-            resp = requests.get(f"https://api.fxtwitter.com/{username}/status/{tweet_id}", timeout=5)
-            data = resp.json()
+            url = f"https://api.fxtwitter.com/{username}/status/{tweet_id}"
+            req = urllib.request.Request(url, headers={"User-Agent": "x-tweet-fetcher/1.0"})
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                data = json.loads(resp.read().decode("utf-8", errors="replace"))
             views = data.get("tweet", {}).get("views", 0)
             if views:
                 tw["views"] = views
                 print(f"[views] {username}/{tweet_id[:8]}... → {views}", file=sys.stderr)
-        except Exception as e:
+        except Exception:
             pass
     return tweets
 if __name__ == "__main__":
     # Version check (best-effort, no crash if unavailable)
     try:
-        from scripts.version_check import check_for_update
+        from version_check import check_for_update
         check_for_update("ythx-101/x-tweet-fetcher")
     except Exception:
         pass

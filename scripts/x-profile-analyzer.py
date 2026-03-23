@@ -205,7 +205,7 @@ def analyze_profile_with_minimax(
 
     try:
         request_body = json.dumps({
-            "model": "MiniMax-M1",
+            "model": model_name,
             "max_tokens": 4096,
             "messages": [
                 {
@@ -216,7 +216,7 @@ def analyze_profile_with_minimax(
         }).encode("utf-8")
 
         req = urllib.request.Request(
-            MINIMAX_API_URL,
+            api_url,
             data=request_body,
             headers={
                 "Content-Type": "application/json",
@@ -367,7 +367,7 @@ def format_report(user_info: Dict, tweets: List[Dict], analysis: str) -> str:
     header = f"""# 用户画像分析报告：@{username}
 
 > 生成时间：{now}
-> 分析工具：x-profile-analyzer v1.2
+> 分析工具：x-profile-analyzer v1.5
 > 数据来源：Nitter / X.com
 > 数据质量：{data_quality}
 
