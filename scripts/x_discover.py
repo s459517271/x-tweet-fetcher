@@ -19,10 +19,22 @@ import json
 import hashlib
 import argparse
 import sys
+import os
 from datetime import datetime
 from pathlib import Path
 
 from common import search_web
+
+# Try Nitter for direct X search (much better quality than search engines)
+_scripts_dir = os.path.dirname(os.path.abspath(__file__))
+if _scripts_dir not in sys.path:
+    sys.path.insert(0, _scripts_dir)
+
+try:
+    import nitter_client as _nitter
+    _HAS_NITTER = _nitter.check_nitter()
+except Exception:
+    _HAS_NITTER = False
 
 
 def verify_freshness(finds, today_str=None):
@@ -99,6 +111,37 @@ def discover_tweets(keywords, max_results=10, cache_file=None, fresh=False):
     all_finds = []
 
     for keyword in keywords:
+        # 1. Try Nitter search first (direct X search, best quality)
+        nitter_results = []
+        if _HAS_NITTER:
+            try:
+                tweets = _nitter.search_tweets(keyword, count=max_results)
+                for tw in tweets:
+                    url = tw.get("url", "")
+                    if not url:
+                        continue
+                    h = url_hash(url)
+                    if h in cache["seen_urls"]:
+                        continue
+                    cache["seen_urls"].append(h)
+                    nitter_results.append({
+                        "url": url,
+                        "title": f"@{tw.get('username','')} · {tw.get('time','')}",
+                        "snippet": tw.get("text", "")[:200],
+                        "query": keyword,
+                        "found_at": datetime.now().isoformat(),
+                        "source": "nitter",
+                        "likes": tw.get("likes", 0),
+                        "retweets": tw.get("retweets", 0),
+                    })
+            except Exception as e:
+                print(f"[WARN] Nitter search failed: {e}", file=sys.stderr)
+
+        if nitter_results:
+            all_finds.extend(nitter_results)
+            continue  # skip search engine fallback for this keyword
+
+        # 2. Fallback: search engines (SearxNG → Brave → DDG)
         query = f"site:x.com {keyword}"
         results = search_web(query, max_results=max_results, fresh=fresh)
 
@@ -117,7 +160,8 @@ def discover_tweets(keywords, max_results=10, cache_file=None, fresh=False):
                 "title": r.get('title', ''),
                 "snippet": r.get('body', r.get('snippet', '')),
                 "query": keyword,
-                "found_at": datetime.now().isoformat()
+                "found_at": datetime.now().isoformat(),
+                "source": "search_engine",
             })
 
     save_cache(cache, cache_file)

@@ -18,6 +18,7 @@ import time
 import urllib.error
 import urllib.request
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 from pathlib import Path
 
 from growth_config import (
@@ -484,7 +485,7 @@ def generate_report(tweet_id: str, record: dict, cross_analysis: bool = False) -
         "═" * 50,
         f"  推文增长报告：{label}",
         f"  ID: {tweet_id}",
-        f"  生成时间：{datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M')} UTC",
+        f"  生成时间：{datetime.now(ZoneInfo('Asia/Shanghai')).strftime('%Y-%m-%d %H:%M')} CST",
         "═" * 50,
     ]
 

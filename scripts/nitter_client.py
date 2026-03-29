@@ -353,8 +353,10 @@ def _extract_next_cursor(html: str) -> Optional[str]:
     """Extract next-page cursor from Nitter HTML.
 
     Nitter renders: <div class="show-more"><a href="?cursor=XXX">Load more</a></div>
+    Or with extra params: <div class="show-more"><a href="?f=tweets&q=...&cursor=XXX">
     """
-    m = re.search(r'<div class="show-more"><a href="\?cursor=([^"]+)"', html)
+    # HTML entities: &amp; in href becomes & after unescaping
+    m = re.search(r'<div class="show-more"><a href="[^"]*[?&](?:amp;)?cursor=([^"&]+)', html)
     if m:
         return urllib.parse.unquote(m.group(1))
     return None
@@ -414,6 +416,9 @@ def _extract_user_info(html: str, username: str) -> Dict:
 def fetch_timeline(username: str, count: int = 20, cursor: Optional[str] = None) -> List[Dict]:
     """Fetch user timeline tweets from Nitter.
 
+    Uses /search?q=from:{username} as the direct /{username} route
+    returns 404 with current session-based auth (guest tokens no longer work).
+
     Args:
         username: Twitter/X username (without @)
         count: Max number of tweets to return
@@ -422,40 +427,7 @@ def fetch_timeline(username: str, count: int = 20, cursor: Optional[str] = None)
     Returns:
         List of tweet dicts
     """
-    tweets = []
-    current_cursor = cursor
-    page = 1
-    MAX_PAGES = 10
-
-    while len(tweets) < count and page <= MAX_PAGES:
-        if current_cursor:
-            url = f"{NITTER_URL}/{username}?cursor={urllib.parse.quote(current_cursor, safe='')}"
-        else:
-            url = f"{NITTER_URL}/{username}"
-
-        print(f"[nitter] timeline page {page}: {url}", file=sys.stderr)
-        html = _fetch_html(url)
-        if not html:
-            break
-
-        parser = _parse_html(html)
-        page_tweets = _extract_tweets_from_events(parser.events)
-
-        if not page_tweets:
-            break
-
-        for tw in page_tweets:
-            if len(tweets) >= count:
-                break
-            tweets.append(tw)
-
-        current_cursor = _extract_next_cursor(html)
-        if not current_cursor:
-            break
-
-        page += 1
-
-    return tweets
+    return search_tweets(f"from:{username}", count=count, cursor=cursor)
 
 
 def search_tweets(query: str, count: int = 20, cursor: Optional[str] = None) -> List[Dict]:
@@ -580,19 +552,42 @@ def fetch_tweet_detail(username: str, tweet_id: str) -> Dict:
 
 
 def fetch_user_info(username: str) -> Dict:
-    """Fetch user profile info from Nitter.
+    """Fetch user profile info via FxTwitter API.
 
-    Args:
-        username: Twitter/X username (without @)
-
-    Returns:
-        User info dict
+    Falls back to Nitter /{user} page if FxTwitter fails.
     """
+    username = username.lstrip("@")
+    # Try FxTwitter first (reliable, no auth needed)
+    try:
+        api_url = f"https://api.fxtwitter.com/{username}"
+        print(f"[fxtwitter] user info: {api_url}", file=sys.stderr)
+        req = urllib.request.Request(api_url, headers={"User-Agent": "x-tweet-fetcher/2.0"})
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode())
+        u = data.get("user", {})
+        if u:
+            return {
+                "username": u.get("screen_name", username),
+                "display_name": u.get("name", ""),
+                "bio": u.get("description", ""),
+                "tweets_count": u.get("tweets", 0),
+                "followers": u.get("followers", 0),
+                "following": u.get("following", 0),
+                "joined": u.get("joined", ""),
+                "avatar": u.get("avatar_url", ""),
+                "banner": u.get("banner_url", ""),
+                "likes": u.get("likes", 0),
+                "website": u.get("website", ""),
+            }
+    except Exception as e:
+        print(f"[fxtwitter] failed: {e}, trying nitter...", file=sys.stderr)
+
+    # Fallback to Nitter
     url = f"{NITTER_URL}/{username}"
     print(f"[nitter] user info: {url}", file=sys.stderr)
     html = _fetch_html(url)
     if not html:
-        return {"error": f"Failed to fetch {url}", "username": username}
+        return {"error": f"Failed to fetch user info for {username}", "username": username}
 
     return _extract_user_info(html, username)
 

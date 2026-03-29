@@ -1122,7 +1122,7 @@ def fetch_user_timeline(
     username: str,
     limit: int = 20,
     camofox_port: int = 9377,
-    nitter_instance: str = "nitter.net",
+    nitter_instance: str = "nitter.tiekoetter.com",
 ) -> Dict[str, Any]:
     """Fetch user timeline via Camofox + Nitter, with multi-page support.
 
@@ -1238,7 +1238,7 @@ def fetch_list_tweets(
     list_id: str,
     limit: int = 20,
     camofox_port: int = 9377,
-    nitter_instance: str = "nitter.net",
+    nitter_instance: str = "nitter.tiekoetter.com",
 ) -> Dict[str, Any]:
     """Fetch tweets from an X List via Camofox + Nitter, with multi-page support.
 
@@ -1329,7 +1329,7 @@ def fetch_list_tweets(
 def fetch_tweet_replies(
     url: str,
     camofox_port: int = 9377,
-    nitter_instance: str = "nitter.net",
+    nitter_instance: str = "nitter.tiekoetter.com",
 ) -> Dict[str, Any]:
     """Fetch tweet replies via Camofox + Nitter."""
     try:
@@ -1916,10 +1916,12 @@ def main():
     )
     parser.add_argument("--url", "-u", help="Tweet URL (x.com or twitter.com)")
     parser.add_argument("--user", help="X/Twitter username (without @)")
+    parser.add_argument("--search", "-s", metavar="QUERY", help="Search tweets (via Nitter)")
+    parser.add_argument("--user-info", metavar="USERNAME", help="Get user profile info (via FxTwitter)")
     parser.add_argument("--article", "-a", metavar="URL_or_ID",
                         help="X Article URL (https://x.com/i/article/ID) or bare article ID")
     parser.add_argument("--monitor", "-m", metavar="@USERNAME",
-                        help="Monitor X mentions for a username (requires Camofox)")
+                        help="Monitor X mentions for a username")
     parser.add_argument("--list", "-l", metavar="LIST_URL_OR_ID",
                         help="Fetch tweets from an X List (URL or ID, requires Camofox)")
     parser.add_argument("--limit", type=int, default=50, help="Max tweets for --user / max results for --monitor (default: 50 for --user, 10 for --monitor)")
@@ -1928,7 +1930,7 @@ def main():
     parser.add_argument("--text-only", "-t", action="store_true", help="Human-readable output")
     parser.add_argument("--timeout", type=int, default=30, help="Request timeout in seconds (default: 30)")
     parser.add_argument("--port", type=int, default=9377, help="Camofox port (default: 9377)")
-    parser.add_argument("--nitter", default="nitter.net", help="Nitter instance for browser mode (default: nitter.net)")
+    parser.add_argument("--nitter", default="nitter.tiekoetter.com", help="Nitter instance for browser mode (default: nitter.tiekoetter.com)")
     parser.add_argument("--backend", choices=["auto", "nitter", "browser"],
                         default="auto",
                         help="Backend: nitter (zero deps), browser (Camofox/Playwright), auto (nitter first, browser fallback)")
@@ -1943,7 +1945,7 @@ def main():
     _lang = args.lang
 
     # Count how many primary modes are requested
-    _modes = [bool(args.url), bool(args.user), bool(args.article), bool(args.monitor), bool(args.list)]
+    _modes = [bool(args.url), bool(args.user), bool(args.search), bool(args.user_info), bool(args.article), bool(args.monitor), bool(args.list)]
     if sum(_modes) > 1:
         print(t("err_mutually_exclusive"), file=sys.stderr)
         sys.exit(1)
@@ -1953,6 +1955,40 @@ def main():
         sys.exit(1)
 
     indent = 2 if args.pretty else None
+
+    # ── Mode: Search ──────────────────────────────────────────────────────
+    if args.search:
+        from nitter_client import search_tweets
+        tweets = search_tweets(args.search, count=args.limit)
+        result = {"query": args.search, "tweets": tweets, "count": len(tweets)}
+        if args.text_only:
+            print(f"搜索 \"{args.search}\" — {len(tweets)} 条结果\n")
+            for i, tw in enumerate(tweets, 1):
+                print(f"[{i}] {tw.get('author_name','')} ({tw.get('author','')}) · {tw.get('time_ago','')}")
+                print(f"     {tw.get('text','')[:200]}")
+                print(f"     ❤ {tw.get('likes',0)}  💬 {tw.get('replies',0)}  👁 {tw.get('views',0)}")
+                print()
+        else:
+            print(json.dumps(result, ensure_ascii=False, indent=indent))
+        return
+
+    # ── Mode: User Info ───────────────────────────────────────────────────
+    if args.user_info:
+        from nitter_client import fetch_user_info
+        result = fetch_user_info(args.user_info)
+        if args.text_only:
+            if result.get("error"):
+                print(f"错误: {result['error']}", file=sys.stderr)
+                sys.exit(1)
+            print(f"@{result.get('username','')} ({result.get('display_name','')})")
+            if result.get("bio"):
+                print(f"简介: {result['bio']}")
+            print(f"推文: {result.get('tweets_count',0)} | 关注: {result.get('following',0)} | 粉丝: {result.get('followers',0)}")
+            if result.get("joined"):
+                print(f"加入: {result['joined']}")
+        else:
+            print(json.dumps(result, ensure_ascii=False, indent=indent))
+        return
 
     # ── Mode 0: Mentions 监控 ─────────────────────────────────────────────
     if args.monitor:
