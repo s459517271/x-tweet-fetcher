@@ -1,0 +1,10 @@
+- text: X
+- text: Home
+- heading "How We Built a Zero-Dependency Tweet Fetcher"
+- text: @writerjane
+- text: Jane Writer
+- text: Feb 10, 2025
+- text: The first paragraph explains the motivation behind building the tool without any API keys.
+- text: The second paragraph goes into architecture details, covering the three backend layers.
+- text: Log in
+- text: Sign up

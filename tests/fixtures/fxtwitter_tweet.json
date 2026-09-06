@@ -1,0 +1,27 @@
+{
+  "code": 200,
+  "message": "OK",
+  "tweet": {
+    "text": "Announcing v2 of the fetcher with unified backends.",
+    "author": {"name": "Alice Anderson", "screen_name": "alice"},
+    "likes": 120, "retweets": 45, "bookmarks": 12, "views": 9000, "replies": 33,
+    "created_at": "Sat Jul 04 12:00:00 +0000 2026",
+    "is_note_tweet": false, "lang": "en",
+    "media": {
+      "all": [
+        {"type": "photo", "url": "https://pbs.twimg.com/media/AAA111.jpg", "width": 1200, "height": 675}
+      ],
+      "videos": [
+        {"url": "https://video.twimg.com/vid/1.mp4", "duration": 12.5,
+         "thumbnail_url": "https://pbs.twimg.com/thumb/1.jpg",
+         "variants": [{"url": "https://video.twimg.com/vid/1-hi.mp4", "bitrate": 832000, "content_type": "video/mp4"}]}
+      ]
+    },
+    "quote": {
+      "text": "The original announcement.",
+      "author": {"name": "Carol Chen", "screen_name": "carol"},
+      "likes": 10, "retweets": 2, "views": 500,
+      "media": {"all": [], "videos": []}
+    }
+  }
+}

@@ -1,0 +1,22 @@
+- link [e1]:
+- /url: /carol/status/1900000000000000101#m
+- link "Carol Chen" [e2]:
+- link "@carol" [e3]:
+- link "12h" [e4]:
+- /url: /carol/status/1900000000000000101#m
+- text: Replying to
+- link "@alice" [e5]:
+- text: Great point, totally agree with this take on parser design  1  0  60
+- link [e6]:
+- /url: /pic/orig/media%2FDEF456img.jpg
+- link [e7]:
+- /url: /frank/status/1900000000000000102#m
+- link "Frank Fu" [e8]:
+- link "@frank" [e9]:
+- link "Feb 15" [e10]:
+- /url: /frank/status/1900000000000000102#m
+- text: Replying to
+- link "@alice" [e11]:
+- text: Here is the repo if anyone wants to dig deeper  3  0  120
+- link "https://github.com/example/repo" [e12]:
+- /url: https://github.com/example/repo

@@ -1,0 +1,35 @@
+- banner:
+  - link "nitter" [e1]:
+  - /url: /
+- link [e2]:
+- /url: /alice/status/1900000000000000001#m
+- link "Alice Anderson" [e3]:
+- link "@alice" [e4]:
+- link "3h" [e5]:
+- text: Shipping the new parser today. It handles pagination, quotes and retweets correctly.
+- text:  7  9  83
+- link [e6]:
+- /url: /carol/status/1900000000000000002#m
+- text: Bob Builder retweeted
+- link "Carol Chen" [e7]:
+- link "@carol" [e8]:
+- link "5h" [e9]:
+- text: Rust rewrite finished, throughput tripled across all our ingestion pipelines.
+- text:  12  30  245
+- link [e10]:
+- /url: /dave/status/1900000000000000003#m
+- link "Dave Диаз" [e11]:
+- link "@dave" [e12]:
+- link "8h" [e13]:
+- text: Check out this chart of our weekly active agents, growth is wild lately
+- link [e14]:
+- /url: /pic/orig/media%2FGabc123XYZ.jpg
+- link [e15]:
+- /url: /erin/status/1900000000000000004#m
+- link "Erin Engel" [e16]:
+- link "@erin" [e17]:
+- link "2d" [e18]:
+- text: This is the quoted tweet body, also long enough to count as content here
+- text:  4  1  55
+- link "Load more" [e19]:
+- /url: "?cursor=DAABCgABGc%2BQqpp__9sLAAIAAAAT"

@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <link rel="stylesheet" type="text/css" href="/css/style.css?v=35" />
+    <link rel="stylesheet" type="text/css" href="/css/fontello.css?v=5" />
+    <link rel="stylesheet" type="text/css" href="/css/themes/nitter.css" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <link rel="mask-icon" href="/safari-pinned-tab.svg" color="#ff6c60" />
+    <link rel="search" type="application/opensearchdescription+xml" title="nitter" href="http://localhost/opensearch" />
+    <link rel="alternate" href="https://x.com/jack" title="View on X" />
+    <link rel="alternate" type="application/rss+xml" href="/jack/rss" title="RSS feed" />
+    <title>jack (@jack) | nitter</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#1F1F1F" />
+    <meta property="og:type" content="object" />
+    <meta property="og:title" content="jack (@jack)" />
+    <meta property="og:description" content="no state is the best state" />
+    <meta property="og:site_name" content="Nitter" />
+    <meta property="og:locale" content="en_US" />
+    <link rel="preload" type="image/png" href="/pic/https%3A%2F%2Fpbs.twimg.com%2Fprofile_banners%2F12%2F1742427520%2F1500x500" as="image" />
+    <link rel="preload" type="image/png" href="/pic/https%3A%2F%2Fpbs.twimg.com%2Fprofile_images%2F1661201415899951105%2FazNjKOSH_400x400.jpg" as="image" />
+    <meta property="og:image" content="http://localhost/pic/https%3A%2F%2Fpbs.twimg.com%2Fprofile_images%2F1661201415899951105%2FazNjKOSH_400x400.jpg" />
+    <meta property="twitter:image:src" content="http://localhost/pic/https%3A%2F%2Fpbs.twimg.com%2Fprofile_images%2F1661201415899951105%2FazNjKOSH_400x400.jpg" />
+    <meta property="twitter:card" content="summary" />
+    <link rel="preload" type="font/woff2" as="font" href="/fonts/fontello.woff2?61663884" crossorigin="anonymous" />
+  </head>
+  <body class="fixed-nav">
+    <nav><div class="inner-nav">
+        <div class="nav-item"><a class="site-name" href="/">nitter</a></div>
+        <a href="/"><img class="site-logo" src="/logo.png" alt="Logo" /></a>
+        <div class="nav-item right">
+          <div class="icon-container"><a class="icon-search" title="Search" href="/search"></a></div>
+          <div class="icon-container"><a class="icon-rss" title="RSS Feed" href="/jack/rss"></a></div>
+          <div class="icon-container"><a class="icon-bird" title="Open in X" href="https://x.com/jack"></a></div>
+          <a href="https://liberapay.com/zedeus"><svg class="lp" viewBox="0 0 40.6 52.3">
+  <g transform="matrix(0.83,0,0,0.83,-158,-261)">
+    <path d="m202.5,366c-3.1 0-5.5-0.4-7.3-1.2-1.8-0.8-3-1.9-3.8-3.3-0.8-1.4-1.1-3-1.1-4.8 0-1.8 0.3-3.7 0.8-5.8l8.3-34.8 10.2-1.6-9.1 37.8c-0.2 0.8-0.3 1.5-0.3 2.2 0 0.7 0.1 1.2 0.4 1.7 0.3 0.5 0.7 0.9 1.3 1.2 0.6 0.3 1.5 0.5 2.7 0.6l-2 8.1"/>
+    <path d="m239.2 344.3c0 3.2-0.5 6.1-1.6 8.8-1 2.6-2.5 4.9-4.4 6.9-1.9 1.9-4.1 3.4-6.7 4.5-2.6 1.1-5.4 1.6-8.5 1.6-1.5 0-3-0.1-4.5-0.4l-3 11.9h-9.7l10.9-45.4c1.7-0.5 3.7-1 6-1.4 2.3-0.4 4.7-0.6 7.3-0.6 2.4 0 4.6 0.4 6.3 1.1 1.8 0.7 3.2 1.8 4.4 3 1.1 1.3 2 2.8 2.5 4.5 0.5 1.7 0.8 3.6 0.8 5.5m-23.8 13.4c0.7 0.2 1.7 0.3 2.8 0.3 1.7 0 3.3-0.3 4.7-1 1.4-0.6 2.6-1.5 3.6-2.7 1-1.1 1.7-2.5 2.3-4.1 0.5-1.6 0.8-3.4 0.8-5.3 0-1.9-0.4-3.5-1.2-4.8-0.8-1.3-2.3-2-4.3-2-1.4 0-2.7 0.1-3.9 0.4l-4.6 19.1"/>
+  </g>
+</svg>
+</a>
+          <div class="icon-container"><a class="icon-info" title="About" href="/about"></a></div>
+          <div class="icon-container"><a class="icon-cog" title="Preferences" href="/settings?referer=%2Fjack"></a></div>
+        </div>
+      </div></nav>
+    <div class="container"><div class="profile-tabs">
+        <div class="profile-banner"><a href="/pic/https%3A%2F%2Fpbs.twimg.com%2Fprofile_banners%2F12%2F1742427520%2F1500x500" target="_blank"><img src="/pic/https%3A%2F%2Fpbs.twimg.com%2Fprofile_banners%2F12%2F1742427520%2F1500x500" alt="" loading="lazy" /></a></div>
+        <div class="profile-tab sticky">
+          <div class="profile-card">
+            <div class="profile-card-info">
+              <a class="profile-card-avatar" href="/pic/https%3A%2F%2Fpbs.twimg.com%2Fprofile_images%2F1661201415899951105%2FazNjKOSH.jpg" target="_blank"><img src="/pic/https%3A%2F%2Fpbs.twimg.com%2Fprofile_images%2F1661201415899951105%2FazNjKOSH_400x400.jpg" alt="" loading="lazy" /></a>
+              <div class="profile-card-tabs-name">
+                <a class="profile-card-fullname" href="/jack" title="jack">jack</a>
+                <div class="verified-icon blue">
+                  <div class="icon-container"><span class="icon-circle verified-icon-circle" title="Verified blue account"></span></div>
+                  <div class="icon-container"><span class="icon-ok verified-icon-check" title="Verified blue account"></span></div>
+                </div>
+                <a class="profile-card-username" href="/jack" title="@jack">@jack</a>
+              </div>
+            </div>
+            <div class="profile-card-extra">
+              <div class="profile-bio"><p dir="auto">no state is the best state</p></div>
+              <div class="profile-website"><span>
+                  <div class="icon-container"><span class="icon-link" title=""></span></div>
+                  <a href="http://primal.net/jack">primal.net&#x2F;jack</a>
+                </span></div>
+              <div class="profile-joindate"><a href="/jack/about" title="8:50 PM - 21 Mar 2006"><div class="icon-container"><span class="icon-calendar" title=""></span> Joined March 2006</div></a></div>
+              <div class="profile-card-extra-links"><ul class="profile-statlist">
+                  <li class="posts">
+                    <span class="profile-stat-header">Tweets</span>
+                    <span class="profile-stat-num">30,594</span>
+                  </li>
+                  <li class="following">
+                    <span class="profile-stat-header">Following</span>
+                    <span class="profile-stat-num">3</span>
+                  </li>
+                  <li class="followers">
+                    <span class="profile-stat-header">Followers</span>
+                    <span class="profile-stat-num">9,616,163</span>
+                  </li>
+                  <li class="likes">
+                    <span class="profile-stat-header">Likes</span>
+                    <span class="profile-stat-num">39,344</span>
+                  </li>
+                </ul></div>
+            </div>
+          </div>
+          <div class="photo-rail-card">
+            <div class="photo-rail-header"><a href="/jack/media"><div class="icon-container"><span class="icon-picture" title=""></span> 2,966 Photos and videos</div></a></div>
+            <input id="photo-rail-grid-toggle" type="checkbox" />
+            <label class="photo-rail-header-mobile" for="photo-rail-grid-toggle">
+              <div class="icon-container"><span class="icon-picture" title=""></span> 2,966 Photos and videos</div>
+              <div class="icon-container"><span class="icon-down" title=""></span></div>
+            </label>
+            <div class="photo-rail-grid">
+              <a href="/jack/status/2073096614487421429#m"><img src="/pic/card_img%2F2071505233126236160%2F4cEDgGIj%3Fformat%3Djpg%26name%3D1200x627" alt="" loading="lazy" /></a>
+              <a href="/jack/status/2057615307175252145#m"><img src="/pic/media%2FHI4d-LvWEAAxWgg.jpg%3Athumb" alt="" loading="lazy" /></a>
+              <a href="/jack/status/2049517570353721658#m"><img src="/pic/media%2FHHFZXftbsAA1ZaC.jpg%3Athumb" alt="" loading="lazy" /></a>
+              <a href="/jack/status/2049155347085140310#m"><img src="/pic/media%2FHHAP7d1bkAAZZ0b.jpg%3Athumb" alt="" loading="lazy" /></a>
+              <a href="/jack/status/2045142396220887436#m"><img src="/pic/media%2FHGHOK4ZWwAASWe7.jpg%3Athumb" alt="" loading="lazy" /></a>
+              <a href="/jack/status/2040924565111537983#m"><img src="/pic/media%2FHFLSExkWcAAqo6t.jpg%3Athumb" alt="" loading="lazy" /></a>
+              <a href="/jack/status/2004435405593292951#m"><img src="/pic/card_img%2F2071375261988450304%2Fo2K2RPwA%3Fformat%3Djpg%26name%3D800x320_1" alt="" loading="lazy" /></a>
+              <a href="/jack/status/1992396466510504415#m"><img src="/pic/card_img%2F2070819014612287488%2FOmEyi46k%3Fformat%3Djpg%26name%3D800x419" alt="" loading="lazy" /></a>
+              <a href="/jack/status/1988333996586266832#m"><img src="/pic/media%2FG5f5t3bXUAAJIdz.jpg%3Athumb" alt="" loading="lazy" /></a>
+              <a href="/jack/status/1987893775633420760#m"><img src="/pic/media%2FG5Zq2o7XIAAXmYP.jpg%3Athumb" alt="" loading="lazy" /></a>
+              <a href="/jack/status/1979615284270166102#m"><img src="/pic/media%2FG3kBLuGXEAAgJL5.jpg%3Athumb" alt="" loading="lazy" /></a>
+              <a href="/jack/status/1976056507302355194#m"><img src="/pic/card_img%2F2071609023540129792%2FgOSmkK5j%3Fformat%3Djpg%26name%3D800x320_1" alt="" loading="lazy" /></a>
+              <a href="/jack/status/1973705624124023180#m"><img src="/pic/card_img%2F2071817027082166272%2FY43IaCW4%3Fformat%3Djpg%26name%3D800x320_1" alt="" loading="lazy" /></a>
+              <a href="/jack/status/1959565202090844180#m"><img src="/pic/media%2FGzHGKFWWwAARS5K.png%3Athumb" alt="" loading="lazy" /></a>
+            </div>
+          </div>
+        </div>
+        <div class="timeline-container">
+          <ul class="tab">
+            <li class="tab-item active"><a href="/jack">Tweets</a></li>
+            <li class="tab-item wide"><a href="/jack/with_replies">Tweets &amp; Replies</a></li>
+            <li class="tab-item"><a href="/jack/media">Media</a></li>
+            <li class="tab-item"><a href="/jack/search">Search</a></li>
+          </ul>
+          <div class="timeline">
+            <div class="timeline-item " data-username="jack">
+              <a class="tweet-link" href="/jack/status/1833951636005552366#m"></a>
+              <div class="tweet-body">
+                <div>
+                  <div class="pinned"><span><div class="icon-container"><span class="icon-pin" title=""></span> Pinned Tweet</div></span></div>
+                  <div class="tweet-header">
+                    <a class="tweet-avatar" href="/jack"><img class="avatar round" src="/pic/profile_images%2F1661201415899951105%2FazNjKOSH_bigger.jpg" alt="" loading="lazy" /></a>
+                    <div class="tweet-name-row">
+                      <div class="fullname-and-username">
+                        <a class="fullname" href="/jack" title="jack">jack</a>
+                        <div class="verified-icon blue">
+                          <div class="icon-container"><span class="icon-circle verified-icon-circle" title="Verified blue account"></span></div>
+                          <div class="icon-container"><span class="icon-ok verified-icon-check" title="Verified blue account"></span></div>
+                        </div>
+                        <a class="username" href="/jack" title="@jack">@jack</a>
+                      </div>
+                      <span class="tweet-date"><a href="/jack/status/1833951636005552366#m" title="Sep 11, 2024 · 7:31 PM UTC">11 Sep 2024</a></span>
+                    </div>
+                  </div>
+                </div>
+                <div class="tweet-content media-body" dir="auto">We reject: kings, presidents, and voting.
+We believe in: rough consensus and running code.
+
+—David Clark, 1992</div>
+                <div class="tweet-stats">
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-comment" title=""></span> 3,819</div></span>
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-retweet" title=""></span> 4,276</div></span>
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-heart" title=""></span> 26,380</div></span>
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-views" title=""></span> 8,195,028</div></span>
+                </div>
+              </div>
+            </div>
+            <div class="timeline-item " data-username="theginkgopages">
+              <a class="tweet-link" href="/theginkgopages/status/638022429974134784#m"></a>
+              <div class="tweet-body">
+                <div>
+                  <div class="retweet-header"><span><div class="icon-container"><span class="icon-retweet" title=""></span> jack retweeted</div></span></div>
+                  <div class="tweet-header">
+                    <a class="tweet-avatar" href="/theginkgopages"><img class="avatar round" src="/pic/profile_images%2F455400893987319808%2FW0Xxf-EC_bigger.jpeg" alt="" loading="lazy" /></a>
+                    <div class="tweet-name-row">
+                      <div class="fullname-and-username"><a class="fullname" href="/theginkgopages" title="The Ginkgo Tweets">The Ginkgo Tweets</a><a class="username" href="/theginkgopages" title="@theginkgopages">@theginkgopages</a></div>
+                      <span class="tweet-date"><a href="/theginkgopages/status/638022429974134784#m" title="Aug 30, 2015 · 4:16 PM UTC">30 Aug 2015</a></span>
+                    </div>
+                  </div>
+                </div>
+                <div class="tweet-content media-body" dir="auto">Ginkgo Leaf (Pencil) by Jack Dorsey,  CEO of Twitter. <a href="/search?f=tweets&q=%23ginkgo">#ginkgo</a> <a href="/search?f=tweets&q=%23drawing">#drawing</a> <a href="/search?f=tweets&q=%23Dorsey">#Dorsey</a> <a href="/search?f=tweets&q=%23Twitter">#Twitter</a> <a href="http://buff.ly/1JLXsxs">buff.ly/1JLXsxs</a></div>
+                <div class="attachments"><div class="gallery-row" style=""><div class="attachment"><a class="still-image" href="/pic/orig/media%2FCNq2BQMWIAESvuO.jpg" target="_blank"><img src="/pic/media%2FCNq2BQMWIAESvuO.jpg%3Fname%3Dsmall%26format%3Dwebp" alt="" loading="lazy" /></a></div></div></div>
+                <div class="tweet-stats">
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-comment" title=""></span> 27</div></span>
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-retweet" title=""></span> 23</div></span>
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-heart" title=""></span> 134</div></span>
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-views" title=""></span></div></span>
+                </div>
+              </div>
+            </div>
+            <div class="timeline-item " data-username="jack">
+              <a class="tweet-link" href="/jack/status/2073096614487421429#m"></a>
+              <div class="tweet-body">
+                <div><div class="tweet-header">
+                    <a class="tweet-avatar" href="/jack"><img class="avatar round" src="/pic/profile_images%2F1661201415899951105%2FazNjKOSH_bigger.jpg" alt="" loading="lazy" /></a>
+                    <div class="tweet-name-row">
+                      <div class="fullname-and-username">
+                        <a class="fullname" href="/jack" title="jack">jack</a>
+                        <div class="verified-icon blue">
+                          <div class="icon-container"><span class="icon-circle verified-icon-circle" title="Verified blue account"></span></div>
+                          <div class="icon-container"><span class="icon-ok verified-icon-check" title="Verified blue account"></span></div>
+                        </div>
+                        <a class="username" href="/jack" title="@jack">@jack</a>
+                      </div>
+                      <span class="tweet-date"><a href="/jack/status/2073096614487421429#m" title="Jul 3, 2026 · 5:28 PM UTC">Jul 3</a></span>
+                    </div>
+                  </div></div>
+                <div class="tweet-content media-body" dir="auto">best and only <a href="https://piped.video/watch?v=cKx8xE8jJZs">piped.video/watch?v=cKx8xE8j…</a></div>
+                <div class="card"><a class="card-container" href="https://piped.video/watch?v=cKx8xE8jJZs">
+                    <div class="card-image-container"><div class="card-image">
+                        <img src="/pic/card_img%2F2071505233126236160%2F4cEDgGIj%3Fformat%3Djpg%26name%3D1200x627" alt="" loading="lazy" />
+                        <div class="card-overlay"><div class="overlay-circle"><span class="overlay-triangle"></span></div></div>
+                      </div></div>
+                    <div class="card-content-container"><div class="card-content">
+                        <h2 class="card-title">Enter the Kettlebell - Pavel Tsatsouline</h2>
+                        <p class="card-description">Comrade, I do not own any rights to this video. I do not intend to ...</p>
+                        <span class="card-destination">youtube.com</span>
+                      </div></div>
+                  </a></div>
+                <div class="tweet-stats">
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-comment" title=""></span> 107</div></span>
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-retweet" title=""></span> 62</div></span>
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-heart" title=""></span> 732</div></span>
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-views" title=""></span> 326,321</div></span>
+                </div>
+              </div>
+            </div>
+            <div class="timeline-item " data-username="21stCenturyTime">
+              <a class="tweet-link" href="/21stCenturyTime/status/2072667075621900350#m"></a>
+              <div class="tweet-body">
+                <div>
+                  <div class="retweet-header"><span><div class="icon-container"><span class="icon-retweet" title=""></span> jack retweeted</div></span></div>
+                  <div class="tweet-header">
+                    <a class="tweet-avatar" href="/21stCenturyTime"><img class="avatar round" src="/pic/profile_images%2F2051670797408673797%2FsQQAfgxk_bigger.jpg" alt="" loading="lazy" /></a>
+                    <div class="tweet-name-row">
+                      <div class="fullname-and-username">
+                        <a class="fullname" href="/21stCenturyTime" title="21st Century">21st Century</a>
+                        <div class="verified-icon blue">
+                          <div class="icon-container"><span class="icon-circle verified-icon-circle" title="Verified blue account"></span></div>
+                          <div class="icon-container"><span class="icon-ok verified-icon-check" title="Verified blue account"></span></div>
+                        </div>
+                        <a class="username" href="/21stCenturyTime" title="@21stCenturyTime">@21stCenturyTime</a>
+                      </div>
+                      <span class="tweet-date"><a href="/21stCenturyTime/status/2072667075621900350#m" title="Jul 2, 2026 · 1:01 PM UTC">Jul 2</a></span>
+                    </div>
+                  </div>
+                </div>
+                <div class="tweet-content media-body" dir="auto">The 21st Century is 25.50% complete.</div>
+                <div class="attachments"><div class="gallery-row" style=""><div class="attachment"><a class="still-image" href="/pic/orig/media%2FHMOXuL5WwAEFP4X.jpg" target="_blank"><img src="/pic/media%2FHMOXuL5WwAEFP4X.jpg%3Fname%3Dsmall%26format%3Dwebp" alt="" loading="lazy" /></a></div></div></div>
+                <div class="tweet-stats">
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-comment" title=""></span> 84</div></span>
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-retweet" title=""></span> 2,468</div></span>
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-heart" title=""></span> 16,183</div></span>
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-views" title=""></span> 324,517</div></span>
+                </div>
+              </div>
+            </div>
+            <div class="timeline-item " data-username="rare_jpg">
+              <a class="tweet-link" href="/rare_jpg/status/2072815785827819645#m"></a>
+              <div class="tweet-body">
+                <div>
+                  <div class="retweet-header"><span><div class="icon-container"><span class="icon-retweet" title=""></span> jack retweeted</div></span></div>
+                  <div class="tweet-header">
+                    <a class="tweet-avatar" href="/rare_jpg"><img class="avatar round" src="/pic/profile_images%2F1854365475003920384%2Fmbml_UNx_bigger.jpg" alt="" loading="lazy" /></a>
+                    <div class="tweet-name-row">
+                      <div class="fullname-and-username">
+                        <a class="fullname" href="/rare_jpg" title="rare.jpg">rare.jpg</a>
+                        <div class="verified-icon blue">
+                          <div class="icon-container"><span class="icon-circle verified-icon-circle" title="Verified blue account"></span></div>
+                          <div class="icon-container"><span class="icon-ok verified-icon-check" title="Verified blue account"></span></div>
+                        </div>
+                        <a class="username" href="/rare_jpg" title="@rare_jpg">@rare_jpg</a>
+                      </div>
+                      <span class="tweet-date"><a href="/rare_jpg/status/2072815785827819645#m" title="Jul 2, 2026 · 10:52 PM UTC">Jul 2</a></span>
+                    </div>
+                  </div>
+                </div>
+                <div class="tweet-content media-body" dir="auto"></div>
+                <div class="attachments"><div class="gallery-row" style=""><div class="attachment"><a class="still-image" href="/pic/orig/media%2FHMQe-P9bwAA3vxl.png" target="_blank"><img src="/pic/media%2FHMQe-P9bwAA3vxl.png%3Fname%3Dsmall%26format%3Dwebp" alt="" loading="lazy" /></a></div></div></div>
+                <div class="tweet-stats">
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-comment" title=""></span> 53</div></span>
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-retweet" title=""></span> 499</div></span>
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-heart" title=""></span> 4,374</div></span>
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-views" title=""></span> 200,173</div></span>
+                </div>
+              </div>
+            </div>
+            <div class="timeline-item " data-username="AppleTV">
+              <a class="tweet-link" href="/AppleTV/status/2072364629796290560#m"></a>
+              <div class="tweet-body">
+                <div>
+                  <div class="retweet-header"><span><div class="icon-container"><span class="icon-retweet" title=""></span> jack retweeted</div></span></div>
+                  <div class="tweet-header">
+                    <a class="tweet-avatar" href="/AppleTV"><img class="avatar round" src="/pic/profile_images%2F1985406954198454272%2Fcvh7odtS_bigger.png" alt="" loading="lazy" /></a>
+                    <div class="tweet-name-row">
+                      <div class="fullname-and-username">
+                        <a class="fullname" href="/AppleTV" title="Apple TV">Apple TV</a>
+                        <div class="verified-icon business">
+                          <div class="icon-container"><span class="icon-circle verified-icon-circle" title="Verified business account"></span></div>
+                          <div class="icon-container"><span class="icon-ok verified-icon-check" title="Verified business account"></span></div>
+                        </div>
+                        <a class="username" href="/AppleTV" title="@AppleTV">@AppleTV</a>
+                      </div>
+                      <span class="tweet-date"><a href="/AppleTV/status/2072364629796290560#m" title="Jul 1, 2026 · 5:00 PM UTC">Jul 1</a></span>
+                    </div>
+                  </div>
+                </div>
+                <div class="tweet-content media-body" dir="auto">42 years ago, William Gibson introduced the world to Neuromancer. Now, the next chapter is loading.
+
+<a href="/search?f=tweets&q=%23Neuromancer">#Neuromancer</a> <a href="/ParamountTVS" title="Paramount Television Studios">@ParamountTVS</a> <a href="/anoncontent" title="Anonymous Content">@anoncontent</a> <a href="/DreamCrew_Ent" title="DreamCrew">@DreamCrew_Ent</a></div>
+                <div class="attachments card"><div class="gallery-video"><div class="attachment">
+                      <img src="/pic/amplify_video_thumb%2F2072342175317204992%2Fimg%2FrVCovZD-rY-bDYVp.jpg%3Fname%3Dsmall%26format%3Dwebp" loading="lazy" />
+                      <div class="video-overlay"><form method="post" action="/enablehls">
+                          <input name="referer" value="/jack" style="display: none; " />
+                          <button type="submit">Enable hls playback</button>
+                        </form></div>
+                    </div></div></div>
+                <div class="tweet-stats">
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-comment" title=""></span> 275</div></span>
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-retweet" title=""></span> 1,088</div></span>
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-heart" title=""></span> 6,951</div></span>
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-views" title=""></span> 2,108,359</div></span>
+                </div>
+              </div>
+            </div>
+            <div class="timeline-item " data-username="owenbjennings">
+              <a class="tweet-link" href="/owenbjennings/status/2072307950149136546#m"></a>
+              <div class="tweet-body">
+                <div>
+                  <div class="retweet-header"><span><div class="icon-container"><span class="icon-retweet" title=""></span> jack retweeted</div></span></div>
+                  <div class="tweet-header">
+                    <a class="tweet-avatar" href="/owenbjennings"><img class="avatar round" src="/pic/profile_images%2F2067748704220835840%2FTE5K4zPK_bigger.jpg" alt="" loading="lazy" /></a>
+                    <div class="tweet-name-row">
+                      <div class="fullname-and-username">
+                        <a class="fullname" href="/owenbjennings" title="OBJ">OBJ</a>
+                        <div class="verified-icon blue">
+                          <div class="icon-container"><span class="icon-circle verified-icon-circle" title="Verified blue account"></span></div>
+                          <div class="icon-container"><span class="icon-ok verified-icon-check" title="Verified blue account"></span></div>
+                        </div>
+                        <a class="username" href="/owenbjennings" title="@owenbjennings">@owenbjennings</a>
+                      </div>
+                      <span class="tweet-date"><a href="/owenbjennings/status/2072307950149136546#m" title="Jul 1, 2026 · 1:14 PM UTC">Jul 1</a></span>
+                    </div>
+                  </div>
+                </div>
+                <div class="tweet-content media-body" dir="auto">claude and chat integrations now live for <a href="/Square" title="Square">@Square</a> !
+
+- -&gt; onward 
+
+<a href="https://investors.block.xyz/investor-news/news-details/2026/Square-Introduces-New-ChatGPT-and-Claude-Integrations-Helping-Sellers-Reach-Customers-Through-AI-Powered-Discovery/default.aspx">investors.block.xyz/investor…</a></div>
+                <div class="card"><a class="card-container" href="https://investors.block.xyz/investor-news/news-details/2026/Square-Introduces-New-ChatGPT-and-Claude-Integrations-Helping-Sellers-Reach-Customers-Through-AI-Powered-Discovery/default.aspx">
+                    <div class="card-image-container"><div class="card-image"><img src="/pic/card_img%2F2072305491913457665%2FhMkOhYCf%3Fformat%3Djpg%26name%3D280x280_2" alt="" loading="lazy" /></div></div>
+                    <div class="card-content-container"><div class="card-content">
+                        <h2 class="card-title">Square Introduces New ChatGPT and Claude Integrations, Helping Sellers Reach Customers Through...</h2>
+                        <p class="card-description">Eligible sellers can participate with no additional technical setup or added Square marketplace commissions Square today announced a new ChatGPT app and Claude plugin, helping sellers get discovered...</p>
+                        <span class="card-destination">investors.block.xyz</span>
+                      </div></div>
+                  </a></div>
+                <div class="tweet-stats">
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-comment" title=""></span> 15</div></span>
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-retweet" title=""></span> 18</div></span>
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-heart" title=""></span> 106</div></span>
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-views" title=""></span> 48,086</div></span>
+                </div>
+              </div>
+            </div>
+            <div class="timeline-item " data-username="nmolnar">
+              <a class="tweet-link" href="/nmolnar/status/2072104152583565653#m"></a>
+              <div class="tweet-body">
+                <div>
+                  <div class="retweet-header"><span><div class="icon-container"><span class="icon-retweet" title=""></span> jack retweeted</div></span></div>
+                  <div class="tweet-header">
+                    <a class="tweet-avatar" href="/nmolnar"><img class="avatar round" src="/pic/profile_images%2F1989071734805553152%2Fh0F0JUN2_bigger.jpg" alt="" loading="lazy" /></a>
+                    <div class="tweet-name-row">
+                      <div class="fullname-and-username">
+                        <a class="fullname" href="/nmolnar" title="Nick Molnar">Nick Molnar</a>
+                        <div class="verified-icon blue">
+                          <div class="icon-container"><span class="icon-circle verified-icon-circle" title="Verified blue account"></span></div>
+                          <div class="icon-container"><span class="icon-ok verified-icon-check" title="Verified blue account"></span></div>
+                        </div>
+                        <a class="username" href="/nmolnar" title="@nmolnar">@nmolnar</a>
+                      </div>
+                      <span class="tweet-date"><a href="/nmolnar/status/2072104152583565653#m" title="Jun 30, 2026 · 11:45 PM UTC">Jun 30</a></span>
+                    </div>
+                  </div>
+                </div>
+                <div class="tweet-content media-body" dir="auto">Pay in 4 has been an Australian staple for us since we launched in 2014. One of the things we’ve heard most is that customers want more options with Afterpay and today we’re rolling out another choice at checkout. 
+
+Afterpay Pay Monthly is now live to help Australian customers pay for purchases over a longer time horizon. And we’re launching exclusively with Apple - so the new iPhone, a MacBook, an iPad - can all be purchased with clear monthly payments and total costs clearly shown.</div>
+                <div class="attachments"><div class="gallery-row" style=""><div class="attachment"><a class="still-image" href="/pic/orig/media%2FHMGXr4aakAA_6DC.jpg" target="_blank"><img src="/pic/media%2FHMGXr4aakAA_6DC.jpg%3Fname%3Dsmall%26format%3Dwebp" alt="" loading="lazy" /></a></div></div></div>
+                <div class="tweet-stats">
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-comment" title=""></span> 20</div></span>
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-retweet" title=""></span> 23</div></span>
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-heart" title=""></span> 143</div></span>
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-views" title=""></span> 68,472</div></span>
+                </div>
+              </div>
+            </div>
+            <div class="timeline-item " data-username="TIDAL">
+              <a class="tweet-link" href="/TIDAL/status/2071593228952822146#m"></a>
+              <div class="tweet-body">
+                <div>
+                  <div class="retweet-header"><span><div class="icon-container"><span class="icon-retweet" title=""></span> jack retweeted</div></span></div>
+                  <div class="tweet-header">
+                    <a class="tweet-avatar" href="/TIDAL"><img class="avatar round" src="/pic/profile_images%2F1653759132397195266%2F7T0RN_jc_bigger.jpg" alt="" loading="lazy" /></a>
+                    <div class="tweet-name-row">
+                      <div class="fullname-and-username">
+                        <a class="fullname" href="/TIDAL" title="Tidal">Tidal</a>
+                        <div class="verified-icon business">
+                          <div class="icon-container"><span class="icon-circle verified-icon-circle" title="Verified business account"></span></div>
+                          <div class="icon-container"><span class="icon-ok verified-icon-check" title="Verified business account"></span></div>
+                        </div>
+                        <a class="username" href="/TIDAL" title="@TIDAL">@TIDAL</a>
+                      </div>
+                      <span class="tweet-date"><a href="/TIDAL/status/2071593228952822146#m" title="Jun 29, 2026 · 1:54 PM UTC">Jun 29</a></span>
+                    </div>
+                  </div>
+                </div>
+                <div class="tweet-content media-body" dir="auto">We're a music platform that puts artists and listeners first. To protect artists and keep listeners informed, here's how we're handling AI-generated music on Tidal beginning on July 15:
+
+- 100% AI-generated tracks will receive a badge that says “AI” and will not receive royalties.
+- Content designed to impersonate other artists gets removed.
+- Listeners will be able to filter all 100% AI-generated content out.
+- These standards also apply to Tidal Uploads.
+
+Read in full: <a href="http://tidal.com/ai-policy">tidal.com/ai-policy</a></div>
+                <div class="attachments"><div class="gallery-row" style=""><div class="attachment"><a class="still-image" href="/pic/orig/media%2FHL-3UzRXUAA5_Vg.png" target="_blank"><img src="/pic/media%2FHL-3UzRXUAA5_Vg.png%3Fname%3Dsmall%26format%3Dwebp" alt="" loading="lazy" /></a></div></div></div>
+                <div class="tweet-stats">
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-comment" title=""></span> 106</div></span>
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-retweet" title=""></span> 429</div></span>
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-heart" title=""></span> 1,840</div></span>
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-views" title=""></span> 181,416</div></span>
+                </div>
+              </div>
+            </div>
+            <div class="timeline-item " data-username="jack">
+              <a class="tweet-link" href="/jack/status/2070799572687876100#m"></a>
+              <div class="tweet-body">
+                <div><div class="tweet-header">
+                    <a class="tweet-avatar" href="/jack"><img class="avatar round" src="/pic/profile_images%2F1661201415899951105%2FazNjKOSH_bigger.jpg" alt="" loading="lazy" /></a>
+                    <div class="tweet-name-row">
+                      <div class="fullname-and-username">
+                        <a class="fullname" href="/jack" title="jack">jack</a>
+                        <div class="verified-icon blue">
+                          <div class="icon-container"><span class="icon-circle verified-icon-circle" title="Verified blue account"></span></div>
+                          <div class="icon-container"><span class="icon-ok verified-icon-check" title="Verified blue account"></span></div>
+                        </div>
+                        <a class="username" href="/jack" title="@jack">@jack</a>
+                      </div>
+                      <span class="tweet-date"><a href="/jack/status/2070799572687876100#m" title="Jun 27, 2026 · 9:21 AM UTC">Jun 27</a></span>
+                    </div>
+                  </div></div>
+                <div class="tweet-content media-body" dir="auto">block app kit.
+
+fastest adoption of any tool by our company.</div>
+                <div class="quote quote-big">
+                  <a class="quote-link" href="/jedwards_27/status/2070642678057103423#m"></a>
+                  <div class="tweet-name-row">
+                    <div class="fullname-and-username"><img class="avatar round mini" src="/pic/profile_images%2F2069893768883642368%2FbMCOUgHj_mini.jpg" alt="" loading="lazy" /><a class="fullname" href="/jedwards_27" title="Jude Edwards">Jude Edwards</a><a class="username" href="/jedwards_27" title="@jedwards_27">@jedwards_27</a></div>
+                    <span class="tweet-date"><a href="/jedwards_27/status/2070642678057103423#m" title="Jun 26, 2026 · 10:57 PM UTC">Jun 26</a></span>
+                  </div>
+                  <div class="quote-text" dir="auto">AI can build an app in an afternoon. But getting it safely into other people's hands is a whole other challenge!
+
+This is the problem that I've been working on these past few months. I'm proud to finally share how we solved it with Block App Kit!
+
+<a href="https://engineering.block.xyz/blog/from-localhost-to-launched-safely-shipping-apps-that-anyone-can-build">engineering.block.xyz/blog/f…</a></div>
+                </div>
+                <div class="tweet-stats">
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-comment" title=""></span> 155</div></span>
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-retweet" title=""></span> 112</div></span>
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-heart" title=""></span> 2,092</div></span>
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-views" title=""></span> 786,768</div></span>
+                </div>
+              </div>
+            </div>
+            <div class="timeline-item " data-username="CashApp">
+              <a class="tweet-link" href="/CashApp/status/2070541818060488910#m"></a>
+              <div class="tweet-body">
+                <div>
+                  <div class="retweet-header"><span><div class="icon-container"><span class="icon-retweet" title=""></span> jack retweeted</div></span></div>
+                  <div class="tweet-header">
+                    <a class="tweet-avatar" href="/CashApp"><img class="avatar round" src="/pic/profile_images%2F1990881469141508096%2Fz9lehpxI_bigger.jpg" alt="" loading="lazy" /></a>
+                    <div class="tweet-name-row">
+                      <div class="fullname-and-username">
+                        <a class="fullname" href="/CashApp" title="Cash App">Cash App</a>
+                        <div class="verified-icon business">
+                          <div class="icon-container"><span class="icon-circle verified-icon-circle" title="Verified business account"></span></div>
+                          <div class="icon-container"><span class="icon-ok verified-icon-check" title="Verified business account"></span></div>
+                        </div>
+                        <a class="username" href="/CashApp" title="@CashApp">@CashApp</a>
+                      </div>
+                      <span class="tweet-date"><a href="/CashApp/status/2070541818060488910#m" title="Jun 26, 2026 · 4:16 PM UTC">Jun 26</a></span>
+                    </div>
+                  </div>
+                </div>
+                <div class="tweet-content media-body" dir="auto">The Green House is popping up in <a href="/search?f=tweets&q=%23Miami">#Miami</a> 🌴 
+
+Bayside Marketplace 
+6.27 - 6.28
+9am - 3pm 
+
+Meet us there ➡️ <a href="http://cash.app/cmp/green-house">cash.app/cmp/green-house</a></div>
+                <div class="attachments card"><div class="gallery-video"><div class="attachment">
+                      <img src="/pic/amplify_video_thumb%2F2070540910694195200%2Fimg%2F8LKCymyQY8pvU5G-.jpg%3Fname%3Dsmall%26format%3Dwebp" loading="lazy" />
+                      <div class="video-overlay"><form method="post" action="/enablehls">
+                          <input name="referer" value="/jack" style="display: none; " />
+                          <button type="submit">Enable hls playback</button>
+                        </form></div>
+                    </div></div></div>
+                <div class="tweet-stats">
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-comment" title=""></span> 63</div></span>
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-retweet" title=""></span> 84</div></span>
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-heart" title=""></span> 380</div></span>
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-views" title=""></span> 208,603</div></span>
+                </div>
+              </div>
+            </div>
+            <div class="timeline-item " data-username="trueventures">
+              <a class="tweet-link" href="/trueventures/status/2070252645433180179#m"></a>
+              <div class="tweet-body">
+                <div>
+                  <div class="retweet-header"><span><div class="icon-container"><span class="icon-retweet" title=""></span> jack retweeted</div></span></div>
+                  <div class="tweet-header">
+                    <a class="tweet-avatar" href="/trueventures"><img class="avatar round" src="/pic/profile_images%2F1127226325423599617%2FWEY2l7b__bigger.png" alt="" loading="lazy" /></a>
+                    <div class="tweet-name-row">
+                      <div class="fullname-and-username">
+                        <a class="fullname" href="/trueventures" title="True Ventures">True Ventures</a>
+                        <div class="verified-icon blue">
+                          <div class="icon-container"><span class="icon-circle verified-icon-circle" title="Verified blue account"></span></div>
+                          <div class="icon-container"><span class="icon-ok verified-icon-check" title="Verified blue account"></span></div>
+                        </div>
+                        <a class="username" href="/trueventures" title="@trueventures">@trueventures</a>
+                      </div>
+                      <span class="tweet-date"><a href="/trueventures/status/2070252645433180179#m" title="Jun 25, 2026 · 9:07 PM UTC">Jun 25</a></span>
+                    </div>
+                  </div>
+                </div>
+                <div class="tweet-content media-body" dir="auto">It is with profound sadness that we share  the news of Om Malik’s passing.
+
+It’s difficult to state the impact that <a href="/om" title="OM">@om</a>  had on all of our lives at True.
+
+Om was the first Founder we funded when we started True. In our Presidio office, Om discussed his idea for a new type of media company. That idea would later become GigaOm. 
+
+Om was a brilliant Founder, an amazing teammate and Partner at True, a prolific writer, a gifted photographer, and a sage and valuable advisor to so many in the technology ecosystem.
+
+Om was brilliant, thoughtful, humorous, profoundly kind, and deeply curious. He was also relentless when he had an idea or story. Om was brave - he never shied away from sharing his views or pushing for the truth.
+
+We were very, very lucky to call Om our Partner and friend at True for these last many years. 
+
+For today, we simply encourage you to take a moment to remember this beautiful soul and great thinker who was in our midst. He would ask us to slow down a bit. Om would want us to think deeper, express our love for one another a lot more.
+
+Above all else, Om wanted us all to retain our humanity and care for each other in our brilliant quest to rebuild the world.
+
+We love you Om.
+
+Team True
+
+<a href="https://om.co/2026/06/24/1966-2026/">om.co/2026/06/24/1966-2026/</a></div>
+                <div class="card large"><a class="card-container" href="https://om.co/2026/06/24/1966-2026/">
+                    <div class="card-image-container"><div class="card-image"><img src="/pic/card_img%2F2070272431215034368%2FbvXUY5Ju%3Fformat%3Dpng%26name%3D800x419" alt="" loading="lazy" /></div></div>
+                    <div class="card-content-container"><div class="card-content">
+                        <h2 class="card-title">Om Malik, 1966-2026</h2>
+                        <p class="card-description">Om Malik passed away on June 24, 2026, at Stanford Hospital after a long health journey with his heart. He was surrounded by family and friends. We invite you to share your remembrances of Om in th…</p>
+                        <span class="card-destination">om.co</span>
+                      </div></div>
+                  </a></div>
+                <div class="tweet-stats">
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-comment" title=""></span> 70</div></span>
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-retweet" title=""></span> 124</div></span>
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-heart" title=""></span> 645</div></span>
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-views" title=""></span> 281,196</div></span>
+                </div>
+              </div>
+            </div>
+            <div class="timeline-item " data-username="CashApp">
+              <a class="tweet-link" href="/CashApp/status/2070189858421940641#m"></a>
+              <div class="tweet-body">
+                <div>
+                  <div class="retweet-header"><span><div class="icon-container"><span class="icon-retweet" title=""></span> jack retweeted</div></span></div>
+                  <div class="tweet-header">
+                    <a class="tweet-avatar" href="/CashApp"><img class="avatar round" src="/pic/profile_images%2F1990881469141508096%2Fz9lehpxI_bigger.jpg" alt="" loading="lazy" /></a>
+                    <div class="tweet-name-row">
+                      <div class="fullname-and-username">
+                        <a class="fullname" href="/CashApp" title="Cash App">Cash App</a>
+                        <div class="verified-icon business">
+                          <div class="icon-container"><span class="icon-circle verified-icon-circle" title="Verified business account"></span></div>
+                          <div class="icon-container"><span class="icon-ok verified-icon-check" title="Verified business account"></span></div>
+                        </div>
+                        <a class="username" href="/CashApp" title="@CashApp">@CashApp</a>
+                      </div>
+                      <span class="tweet-date"><a href="/CashApp/status/2070189858421940641#m" title="Jun 25, 2026 · 4:58 PM UTC">Jun 25</a></span>
+                    </div>
+                  </div>
+                </div>
+                <div class="tweet-content media-body" dir="auto">*poof* another set of wands magically appeared today before they sold out in 30 minutes  
+
+click the link below for alerts so you don't miss the next drop ⬇️</div>
+                <div class="quote quote-big">
+                  <a class="quote-link" href="/CashApp/status/2064163931380126063#m"></a>
+                  <div class="tweet-name-row">
+                    <div class="fullname-and-username">
+                      <img class="avatar round mini" src="/pic/profile_images%2F1990881469141508096%2Fz9lehpxI_mini.jpg" alt="" loading="lazy" />
+                      <a class="fullname" href="/CashApp" title="Cash App">Cash App</a>
+                      <div class="verified-icon business">
+                        <div class="icon-container"><span class="icon-circle verified-icon-circle" title="Verified business account"></span></div>
+                        <div class="icon-container"><span class="icon-ok verified-icon-check" title="Verified business account"></span></div>
+                      </div>
+                      <a class="username" href="/CashApp" title="@CashApp">@CashApp</a>
+                    </div>
+                    <span class="tweet-date"><a href="/CashApp/status/2064163931380126063#m" title="Jun 9, 2026 · 1:53 AM UTC">Jun 9</a></span>
+                  </div>
+                  <div class="quote-text" dir="auto">apparently you all really liked the wand. sign up to be notified for the restock ⬇️</div>
+                  <div class="quote-media-container"><div class="attachments card"><div class="gallery-video"><div class="attachment">
+                          <img src="/pic/amplify_video_thumb%2F2064163881153404929%2Fimg%2FlZWszuaEin3tfYEb.jpg%3Fname%3Dsmall%26format%3Dwebp" loading="lazy" />
+                          <div class="video-overlay"><form method="post" action="/enablehls">
+                              <input name="referer" value="/jack" style="display: none; " />
+                              <button type="submit">Enable hls playback</button>
+                            </form></div>
+                        </div></div></div></div>
+                </div>
+                <div class="tweet-stats">
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-comment" title=""></span> 108</div></span>
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-retweet" title=""></span> 54</div></span>
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-heart" title=""></span> 409</div></span>
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-views" title=""></span> 300,463</div></span>
+                </div>
+              </div>
+            </div>
+            <div class="timeline-item " data-username="hbomax">
+              <a class="tweet-link" href="/hbomax/status/2070175191469293799#m"></a>
+              <div class="tweet-body">
+                <div>
+                  <div class="retweet-header"><span><div class="icon-container"><span class="icon-retweet" title=""></span> jack retweeted</div></span></div>
+                  <div class="tweet-header">
+                    <a class="tweet-avatar" href="/hbomax"><img class="avatar round" src="/pic/profile_images%2F1985475152620998656%2FUKJgH1qT_bigger.jpg" alt="" loading="lazy" /></a>
+                    <div class="tweet-name-row">
+                      <div class="fullname-and-username">
+                        <a class="fullname" href="/hbomax" title="HBO Max">HBO Max</a>
+                        <div class="verified-icon business">
+                          <div class="icon-container"><span class="icon-circle verified-icon-circle" title="Verified business account"></span></div>
+                          <div class="icon-container"><span class="icon-ok verified-icon-check" title="Verified business account"></span></div>
+                        </div>
+                        <a class="username" href="/hbomax" title="@hbomax">@hbomax</a>
+                      </div>
+                      <span class="tweet-date"><a href="/hbomax/status/2070175191469293799#m" title="Jun 25, 2026 · 4:00 PM UTC">Jun 25</a></span>
+                    </div>
+                  </div>
+                </div>
+                <div class="tweet-content media-body" dir="auto">Can’t knock the hustle. 
+
+<a href="/search?f=tweets&q=%23JAŸZin8">#JAŸZin8</a> an 8-part documentary series featuring JAŸ-Z in conversation with <a href="/RickRubin" title="Rick Rubin">@rickrubin</a>, premieres this fall on HBO Max.</div>
+                <div class="attachments card"><div class="gallery-video"><div class="attachment">
+                      <img src="/pic/amplify_video_thumb%2F2070138909510508544%2Fimg%2F4pBlGt0xpzPYfP_L.jpg%3Fname%3Dsmall%26format%3Dwebp" loading="lazy" />
+                      <div class="video-overlay"><form method="post" action="/enablehls">
+                          <input name="referer" value="/jack" style="display: none; " />
+                          <button type="submit">Enable hls playback</button>
+                        </form></div>
+                    </div></div></div>
+                <div class="tweet-stats">
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-comment" title=""></span> 271</div></span>
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-retweet" title=""></span> 2,159</div></span>
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-heart" title=""></span> 7,562</div></span>
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-views" title=""></span> 1,891,034</div></span>
+                </div>
+              </div>
+            </div>
+            <div class="timeline-item " data-username="dreah1128">
+              <a class="tweet-link" href="/dreah1128/status/2069872033631015323#m"></a>
+              <div class="tweet-body">
+                <div>
+                  <div class="retweet-header"><span><div class="icon-container"><span class="icon-retweet" title=""></span> jack retweeted</div></span></div>
+                  <div class="tweet-header">
+                    <a class="tweet-avatar" href="/dreah1128"><img class="avatar round" src="/pic/profile_images%2F1791113351256313856%2Fr0VhO1FL_bigger.jpg" alt="" loading="lazy" /></a>
+                    <div class="tweet-name-row">
+                      <div class="fullname-and-username"><a class="fullname" href="/dreah1128" title="Dreah1128">Dreah1128</a><a class="username" href="/dreah1128" title="@dreah1128">@dreah1128</a></div>
+                      <span class="tweet-date"><a href="/dreah1128/status/2069872033631015323#m" title="Jun 24, 2026 · 7:55 PM UTC">Jun 24</a></span>
+                    </div>
+                  </div>
+                </div>
+                <div class="tweet-content media-body" dir="auto">It came!!!!! Locked and loaded!! 🤑🤑
+<a href="/CashApp" title="Cash App">@CashApp</a></div>
+                <div class="attachments"><div class="gallery-row" style=""><div class="attachment"><a class="still-image" href="/pic/orig/media%2FHLmppV7XAAAnPxa.jpg" target="_blank"><img src="/pic/media%2FHLmppV7XAAAnPxa.jpg%3Fname%3Dsmall%26format%3Dwebp" alt="" loading="lazy" /></a></div></div></div>
+                <div class="tweet-stats">
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-comment" title=""></span> 23</div></span>
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-retweet" title=""></span> 24</div></span>
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-heart" title=""></span> 221</div></span>
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-views" title=""></span> 59,883</div></span>
+                </div>
+              </div>
+            </div>
+            <div class="timeline-item " data-username="RaminNasibov">
+              <a class="tweet-link" href="/RaminNasibov/status/2069468783450759433#m"></a>
+              <div class="tweet-body">
+                <div>
+                  <div class="retweet-header"><span><div class="icon-container"><span class="icon-retweet" title=""></span> jack retweeted</div></span></div>
+                  <div class="tweet-header">
+                    <a class="tweet-avatar" href="/RaminNasibov"><img class="avatar round" src="/pic/profile_images%2F2006792793650323456%2FWI88G3rp_bigger.jpg" alt="" loading="lazy" /></a>
+                    <div class="tweet-name-row">
+                      <div class="fullname-and-username">
+                        <a class="fullname" href="/RaminNasibov" title="Ramin Nasibov">Ramin Nasibov</a>
+                        <div class="verified-icon blue">
+                          <div class="icon-container"><span class="icon-circle verified-icon-circle" title="Verified blue account"></span></div>
+                          <div class="icon-container"><span class="icon-ok verified-icon-check" title="Verified blue account"></span></div>
+                        </div>
+                        <a class="username" href="/RaminNasibov" title="@RaminNasibov">@RaminNasibov</a>
+                      </div>
+                      <span class="tweet-date"><a href="/RaminNasibov/status/2069468783450759433#m" title="Jun 23, 2026 · 5:13 PM UTC">Jun 23</a></span>
+                    </div>
+                  </div>
+                </div>
+                <div class="tweet-content media-body" dir="auto">Watch Dog</div>
+                <div class="attachments"><div class="gallery-row" style=""><div class="attachment"><a class="still-image" href="/pic/orig/media%2FHLg65FeW0AAAZmN.jpg" target="_blank"><img src="/pic/media%2FHLg65FeW0AAAZmN.jpg%3Fname%3Dsmall%26format%3Dwebp" alt="" loading="lazy" /></a></div></div></div>
+                <div class="tweet-stats">
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-comment" title=""></span> 38</div></span>
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-retweet" title=""></span> 271</div></span>
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-heart" title=""></span> 2,889</div></span>
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-views" title=""></span> 91,128</div></span>
+                </div>
+              </div>
+            </div>
+            <div class="timeline-item " data-username="collision">
+              <a class="tweet-link" href="/collision/status/2069767011513565309#m"></a>
+              <div class="tweet-body">
+                <div>
+                  <div class="retweet-header"><span><div class="icon-container"><span class="icon-retweet" title=""></span> jack retweeted</div></span></div>
+                  <div class="tweet-header">
+                    <a class="tweet-avatar" href="/collision"><img class="avatar round" src="/pic/profile_images%2F2464132281%2Fjbbxl9p7ratdyuposrif_bigger.jpeg" alt="" loading="lazy" /></a>
+                    <div class="tweet-name-row">
+                      <div class="fullname-and-username">
+                        <a class="fullname" href="/collision" title="John Collison">John Collison</a>
+                        <div class="verified-icon blue">
+                          <div class="icon-container"><span class="icon-circle verified-icon-circle" title="Verified blue account"></span></div>
+                          <div class="icon-container"><span class="icon-ok verified-icon-check" title="Verified blue account"></span></div>
+                        </div>
+                        <a class="username" href="/collision" title="@collision">@collision</a>
+                      </div>
+                      <span class="tweet-date"><a href="/collision/status/2069767011513565309#m" title="Jun 24, 2026 · 12:58 PM UTC">Jun 24</a></span>
+                    </div>
+                  </div>
+                </div>
+                <div class="tweet-content media-body" dir="auto">We're launching Intercept, a new philanthropic initiative to fight respiratory viruses like colds and flus. <a href="https://www.interceptfund.com/">interceptfund.com/</a></div>
+                <div class="card large"><a class="card-container" href="https://www.interceptfund.com/">
+                    <div class="card-image-container"><div class="card-image"><img src="/pic/card_img%2F2072313407962062848%2FM5kpcKTI%3Fformat%3Dpng%26name%3D800x419" alt="" loading="lazy" /></div></div>
+                    <div class="card-content-container"><div class="card-content">
+                        <h2 class="card-title">Intercept</h2>
+                        <p class="card-description">A philanthropic initiative accelerating technologies to reduce and ultimately eliminate respiratory viruses.</p>
+                        <span class="card-destination">interceptfund.com</span>
+                      </div></div>
+                  </a></div>
+                <div class="tweet-stats">
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-comment" title=""></span> 87</div></span>
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-retweet" title=""></span> 185</div></span>
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-heart" title=""></span> 1,796</div></span>
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-views" title=""></span> 274,513</div></span>
+                </div>
+              </div>
+            </div>
+            <div class="timeline-item " data-username="Pontifex">
+              <a class="tweet-link" href="/Pontifex/status/2069737297482809552#m"></a>
+              <div class="tweet-body">
+                <div>
+                  <div class="retweet-header"><span><div class="icon-container"><span class="icon-retweet" title=""></span> jack retweeted</div></span></div>
+                  <div class="tweet-header">
+                    <a class="tweet-avatar" href="/Pontifex"><img class="avatar round" src="/pic/profile_images%2F1922601341576216576%2FJA1DF-Tv_bigger.jpg" alt="" loading="lazy" /></a>
+                    <div class="tweet-name-row">
+                      <div class="fullname-and-username">
+                        <a class="fullname" href="/Pontifex" title="Pope Leo XIV">Pope Leo XIV</a>
+                        <div class="verified-icon government">
+                          <div class="icon-container"><span class="icon-circle verified-icon-circle" title="Verified government account"></span></div>
+                          <div class="icon-container"><span class="icon-ok verified-icon-check" title="Verified government account"></span></div>
+                        </div>
+                        <a class="username" href="/Pontifex" title="@Pontifex">@Pontifex</a>
+                      </div>
+                      <span class="tweet-date"><a href="/Pontifex/status/2069737297482809552#m" title="Jun 24, 2026 · 11:00 AM UTC">Jun 24</a></span>
+                    </div>
+                  </div>
+                </div>
+                <div class="tweet-content media-body" dir="auto">Dear writers, we need your imagination, your narrative creativity and your lively thinking. We need these to create spaces of freedom and authenticity, within which divine grace can make the promise of consolation and peace resound. <a href="https://www.vatican.va/content/leo-xiv/en/events/event.dir.html/content/vaticanevents/en/2026/6/24/scrittori-lev.html">vatican.va/content/leo-xiv/e…</a></div>
+                <div class="card large"><a class="card-container" href=""><div class="card-content-container"><div class="card-content"><h2 class="card-title"></h2></div></div></a></div>
+                <div class="tweet-stats">
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-comment" title=""></span> 1,107</div></span>
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-retweet" title=""></span> 13,513</div></span>
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-heart" title=""></span> 94,276</div></span>
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-views" title=""></span> 15,357,652</div></span>
+                </div>
+              </div>
+            </div>
+            <div class="timeline-item " data-username="CashApp">
+              <a class="tweet-link" href="/CashApp/status/2069088371209916843#m"></a>
+              <div class="tweet-body">
+                <div>
+                  <div class="retweet-header"><span><div class="icon-container"><span class="icon-retweet" title=""></span> jack retweeted</div></span></div>
+                  <div class="tweet-header">
+                    <a class="tweet-avatar" href="/CashApp"><img class="avatar round" src="/pic/profile_images%2F1990881469141508096%2Fz9lehpxI_bigger.jpg" alt="" loading="lazy" /></a>
+                    <div class="tweet-name-row">
+                      <div class="fullname-and-username">
+                        <a class="fullname" href="/CashApp" title="Cash App">Cash App</a>
+                        <div class="verified-icon business">
+                          <div class="icon-container"><span class="icon-circle verified-icon-circle" title="Verified business account"></span></div>
+                          <div class="icon-container"><span class="icon-ok verified-icon-check" title="Verified business account"></span></div>
+                        </div>
+                        <a class="username" href="/CashApp" title="@CashApp">@CashApp</a>
+                      </div>
+                      <span class="tweet-date"><a href="/CashApp/status/2069088371209916843#m" title="Jun 22, 2026 · 4:01 PM UTC">Jun 22</a></span>
+                    </div>
+                  </div>
+                </div>
+                <div class="tweet-content media-body" dir="auto">we outsssside. translation: we out$$$$ide. 
+
+so we're putting 10% back on gas and groceries in the card tab, refreshed every Friday till July 3rd.</div>
+                <div class="attachments"><div class="gallery-row" style="">
+                    <div class="attachment"><a class="still-image" href="/pic/orig/media%2FHLbgUr_bIAAzq-V.jpg" target="_blank"><img src="/pic/media%2FHLbgUr_bIAAzq-V.jpg%3Fname%3Dsmall%26format%3Dwebp" alt="" loading="lazy" /></a></div>
+                    <div class="attachment"><a class="still-image" href="/pic/orig/media%2FHLbgUr8bsAAwgho.jpg" target="_blank"><img src="/pic/media%2FHLbgUr8bsAAwgho.jpg%3Fname%3Dsmall%26format%3Dwebp" alt="" loading="lazy" /></a></div>
+                  </div></div>
+                <div class="tweet-stats">
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-comment" title=""></span> 109</div></span>
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-retweet" title=""></span> 84</div></span>
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-heart" title=""></span> 702</div></span>
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-views" title=""></span> 258,906</div></span>
+                </div>
+              </div>
+            </div>
+            <div class="timeline-item " data-username="jack">
+              <a class="tweet-link" href="/jack/status/2068692427863466179#m"></a>
+              <div class="tweet-body">
+                <div><div class="tweet-header">
+                    <a class="tweet-avatar" href="/jack"><img class="avatar round" src="/pic/profile_images%2F1661201415899951105%2FazNjKOSH_bigger.jpg" alt="" loading="lazy" /></a>
+                    <div class="tweet-name-row">
+                      <div class="fullname-and-username">
+                        <a class="fullname" href="/jack" title="jack">jack</a>
+                        <div class="verified-icon blue">
+                          <div class="icon-container"><span class="icon-circle verified-icon-circle" title="Verified blue account"></span></div>
+                          <div class="icon-container"><span class="icon-ok verified-icon-check" title="Verified blue account"></span></div>
+                        </div>
+                        <a class="username" href="/jack" title="@jack">@jack</a>
+                      </div>
+                      <span class="tweet-date"><a href="/jack/status/2068692427863466179#m" title="Jun 21, 2026 · 1:48 PM UTC">Jun 21</a></span>
+                    </div>
+                  </div></div>
+                <div class="tweet-content media-body" dir="auto">🌞</div>
+                <div class="tweet-stats">
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-comment" title=""></span> 591</div></span>
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-retweet" title=""></span> 353</div></span>
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-heart" title=""></span> 3,651</div></span>
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-views" title=""></span> 369,720</div></span>
+                </div>
+              </div>
+            </div>
+            <div class="timeline-item " data-username="bitgould">
+              <a class="tweet-link" href="/bitgould/status/2067852712289652753#m"></a>
+              <div class="tweet-body">
+                <div>
+                  <div class="retweet-header"><span><div class="icon-container"><span class="icon-retweet" title=""></span> jack retweeted</div></span></div>
+                  <div class="tweet-header">
+                    <a class="tweet-avatar" href="/bitgould"><img class="avatar round" src="/pic/profile_images%2F1588891815075143681%2Fj_tJbQri_bigger.jpg" alt="" loading="lazy" /></a>
+                    <div class="tweet-name-row">
+                      <div class="fullname-and-username">
+                        <a class="fullname" href="/bitgould" title="Dan Gould">Dan Gould</a>
+                        <div class="verified-icon blue">
+                          <div class="icon-container"><span class="icon-circle verified-icon-circle" title="Verified blue account"></span></div>
+                          <div class="icon-container"><span class="icon-ok verified-icon-check" title="Verified blue account"></span></div>
+                        </div>
+                        <a class="username" href="/bitgould" title="@bitgould">@bitgould</a>
+                      </div>
+                      <span class="tweet-date"><a href="/bitgould/status/2067852712289652753#m" title="Jun 19, 2026 · 6:11 AM UTC">Jun 19</a></span>
+                    </div>
+                  </div>
+                </div>
+                <div class="tweet-content media-body" dir="auto">Really fun history of trinkets holding tap-to-pay chips from East Asia first. Cashapp is sitting on a huge  collectible thing here. Taiwan has tons of these trinkets with payment chips inside.</div>
+                <div class="attachments"><div class="gallery-row" style=""><div class="attachment"><a class="still-image" href="/pic/orig/media%2FHLJ8wRsa8AAaw1t.jpg" target="_blank"><img src="/pic/media%2FHLJ8wRsa8AAaw1t.jpg%3Fname%3Dsmall%26format%3Dwebp" alt="" loading="lazy" /></a></div></div></div>
+                <div class="quote quote-big">
+                  <a class="quote-link" href="/CashApp/status/2067638923946578053#m"></a>
+                  <div class="tweet-name-row">
+                    <div class="fullname-and-username">
+                      <img class="avatar round mini" src="/pic/profile_images%2F1990881469141508096%2Fz9lehpxI_mini.jpg" alt="" loading="lazy" />
+                      <a class="fullname" href="/CashApp" title="Cash App">Cash App</a>
+                      <div class="verified-icon business">
+                        <div class="icon-container"><span class="icon-circle verified-icon-circle" title="Verified business account"></span></div>
+                        <div class="icon-container"><span class="icon-ok verified-icon-check" title="Verified business account"></span></div>
+                      </div>
+                      <a class="username" href="/CashApp" title="@CashApp">@CashApp</a>
+                    </div>
+                    <span class="tweet-date"><a href="/CashApp/status/2067638923946578053#m" title="Jun 18, 2026 · 4:01 PM UTC">Jun 18</a></span>
+                  </div>
+                  <div class="quote-text" dir="auto">sᴍᴀʟʟ ʙᴜᴛ ᴍɪɢʜᴛʏ. ᴛʜᴇ ᴍɪɴɪ ᴄᴀʀᴅ ɪs ʜᴇʀᴇ.
+
+Order now. Link in bio.</div>
+                  <div class="quote-media-container"><div class="attachments card"><div class="gallery-video"><div class="attachment">
+                          <img src="/pic/amplify_video_thumb%2F2067638874529259520%2Fimg%2FodSmpePDFDrFxQ-X.jpg%3Fname%3Dsmall%26format%3Dwebp" loading="lazy" />
+                          <div class="video-overlay"><form method="post" action="/enablehls">
+                              <input name="referer" value="/jack" style="display: none; " />
+                              <button type="submit">Enable hls playback</button>
+                            </form></div>
+                        </div></div></div></div>
+                </div>
+                <div class="tweet-stats">
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-comment" title=""></span> 36</div></span>
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-retweet" title=""></span> 41</div></span>
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-heart" title=""></span> 489</div></span>
+                  <span class="tweet-stat"><div class="icon-container"><span class="icon-views" title=""></span> 133,815</div></span>
+                </div>
+              </div>
+            </div>
+            <div class="show-more"><a href="?cursor=DAAHCgABHMetd58__-oLAAIAAAATMjA2Nzk2MDg5MDMzOTUzNzAxNggAAwAAAAIAAA">Load more</a></div>
+            <div class="top-ref"><div class="icon-container"><a class="icon-down" title="" href="#"></a></div></div>
+          </div>
+        </div>
+      </div></div>
+  </body>
+</html>

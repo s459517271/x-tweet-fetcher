@@ -1,0 +1,31 @@
+{
+  "code": 200,
+  "message": "OK",
+  "tweet": {
+    "text": "New article is live.",
+    "author": {"name": "Jane Writer", "screen_name": "writerjane"},
+    "likes": 5, "retweets": 1, "bookmarks": 0, "views": 300, "replies": 2,
+    "created_at": "Fri Jul 03 09:00:00 +0000 2026",
+    "is_note_tweet": false, "lang": "en",
+    "media": {"all": [], "videos": []},
+    "article": {
+      "title": "Building Fetchers",
+      "preview_text": "How we built it",
+      "created_at": "Fri Jul 03 09:00:00 +0000 2026",
+      "cover_media": {"media_id": 900, "media_info": {"original_img_url": "https://pbs.twimg.com/media/COVER.jpg"}},
+      "media_entities": [
+        {"media_id": 901, "media_info": {"original_img_url": "https://pbs.twimg.com/media/INLINE.jpg"}}
+      ],
+      "content": {
+        "blocks": [
+          {"type": "unstyled", "text": "First paragraph of the article."},
+          {"type": "atomic", "text": "", "entityRanges": [{"key": 0}]},
+          {"type": "unstyled", "text": "Second paragraph after the image."}
+        ],
+        "entityMap": {
+          "0": {"type": "MEDIA", "data": {"mediaItems": [{"mediaId": 901}]}}
+        }
+      }
+    }
+  }
+}
